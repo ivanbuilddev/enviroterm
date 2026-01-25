@@ -1,0 +1,63 @@
+{
+  "name": "claude-terminal-manager",
+  "version": "0.1.0",
+  "description": "A cross-platform application for managing multiple Claude Code terminal sessions",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "package": "npm run build && electron-builder"
+  },
+  "keywords": [
+    "electron",
+    "react",
+    "claude",
+    "terminal"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.17",
+    "electron": "^40.0.0",
+    "electron-builder": "^26.4.0",
+    "electron-vite": "^5.0.0",
+    "postcss": "^8.4.33",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.3",
+    "vite": "^7.3.1"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "overrides": {
+    "tar": "^7.5.6",
+    "rimraf": "^6.1.2",
+    "glob": "^11.0.0",
+    "inflight": "npm:lru-cache@^10.0.0",
+    "roarr": "^7.21.4"
+  },
+  "build": {
+    "appId": "com.claude-terminal-manager",
+    "productName": "Claude Terminal Manager",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}
