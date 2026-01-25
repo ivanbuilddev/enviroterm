@@ -2,10 +2,177 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * =============================================================================
+ * COLOR SYSTEM - Theme Variables
+ * =============================================================================
+ *
+ * This file defines the application's color palette using CSS custom properties.
+ * All colors use HSL format for easy adjustment of hue, saturation, and lightness.
+ *
+ * THEME SUPPORT:
+ * - Default theme is applied via :root
+ * - Additional themes can be added as data attributes: [data-theme="light"]
+ * - To switch themes: document.documentElement.setAttribute('data-theme', 'themeName')
+ *
+ * COLOR NAMING CONVENTION:
+ * - bg-*      : Background colors (surfaces, containers)
+ * - fg-*      : Foreground/text colors
+ * - border-*  : Border and divider colors
+ * - accent-*  : Interactive elements, highlights
+ * - status-*  : Semantic colors (success, warning, error, info)
+ *
+ * =============================================================================
+ */
+
+:root {
+  /* -------------------------------------------------------------------------
+   * BACKGROUND COLORS
+   * Use for surfaces and containers. Lower numbers = darker/base layers.
+   * -------------------------------------------------------------------------
+   * bg-base      : Main app background, deepest layer
+   * bg-surface   : Cards, panels, elevated surfaces
+   * bg-elevated  : Headers, footers, navigation bars
+   * bg-hover     : Hover states for interactive elements
+   * bg-active    : Active/pressed states, selected items
+   * bg-overlay   : Modal overlays, dropdowns (semi-transparent)
+   */
+  --color-bg-base: hsl(220, 16%, 10%);
+  --color-bg-surface: hsl(220, 14%, 14%);
+  --color-bg-elevated: hsl(220, 13%, 18%);
+  --color-bg-hover: hsl(220, 12%, 22%);
+  --color-bg-active: hsl(220, 12%, 26%);
+  --color-bg-overlay: hsla(220, 16%, 8%, 0.85);
+
+  /* -------------------------------------------------------------------------
+   * FOREGROUND / TEXT COLORS
+   * Use for text and icons. Higher contrast for primary content.
+   * -------------------------------------------------------------------------
+   * fg-primary   : Main text, headings, important content
+   * fg-secondary : Body text, descriptions
+   * fg-muted     : Placeholders, hints, disabled text
+   * fg-faint     : Very subtle text, timestamps, metadata
+   */
+  --color-fg-primary: hsl(220, 15%, 90%);
+  --color-fg-secondary: hsl(220, 10%, 70%);
+  --color-fg-muted: hsl(220, 8%, 50%);
+  --color-fg-faint: hsl(220, 6%, 40%);
+
+  /* -------------------------------------------------------------------------
+   * BORDER COLORS
+   * Use for dividers, outlines, and container boundaries.
+   * -------------------------------------------------------------------------
+   * border-default  : Standard borders, dividers
+   * border-subtle   : Very subtle separation (between similar elements)
+   * border-strong   : Emphasized borders, focus rings
+   */
+  --color-border-default: hsl(220, 10%, 25%);
+  --color-border-subtle: hsl(220, 10%, 20%);
+  --color-border-strong: hsl(220, 10%, 35%);
+
+  /* -------------------------------------------------------------------------
+   * ACCENT COLORS
+   * Use for interactive elements, links, and highlights.
+   * -------------------------------------------------------------------------
+   * accent-primary      : Primary actions (buttons, links, focus)
+   * accent-primary-hover: Hover state for primary accent
+   * accent-secondary    : Secondary actions, less emphasis
+   * accent-muted        : Subtle accent for backgrounds, tags
+   */
+  --color-accent-primary: hsl(190, 35%, 52%);
+  --color-accent-primary-hover: hsl(190, 38%, 58%);
+  --color-accent-secondary: hsl(220, 30%, 55%);
+  --color-accent-muted: hsl(190, 20%, 25%);
+
+  /* -------------------------------------------------------------------------
+   * STATUS / SEMANTIC COLORS
+   * Use for feedback, alerts, and state indicators.
+   * -------------------------------------------------------------------------
+   * status-success      : Positive actions, confirmations
+   * status-success-muted: Success backgrounds
+   * status-warning      : Caution, non-critical alerts
+   * status-warning-muted: Warning backgrounds
+   * status-error        : Errors, destructive actions
+   * status-error-muted  : Error backgrounds
+   * status-info         : Informational messages
+   * status-info-muted   : Info backgrounds
+   */
+  --color-status-success: hsl(150, 30%, 50%);
+  --color-status-success-muted: hsl(150, 20%, 20%);
+  --color-status-warning: hsl(40, 45%, 55%);
+  --color-status-warning-muted: hsl(40, 25%, 20%);
+  --color-status-error: hsl(0, 40%, 55%);
+  --color-status-error-muted: hsl(0, 25%, 20%);
+  --color-status-info: hsl(200, 35%, 55%);
+  --color-status-info-muted: hsl(200, 20%, 20%);
+
+  /* -------------------------------------------------------------------------
+   * TERMINAL SPECIFIC
+   * Colors optimized for terminal/code display.
+   * -------------------------------------------------------------------------
+   */
+  --color-terminal-bg: hsl(220, 18%, 8%);
+  --color-terminal-fg: hsl(60, 5%, 80%);
+  --color-terminal-cursor: hsl(190, 35%, 52%);
+  --color-terminal-selection: hsla(190, 35%, 52%, 0.3);
+}
+
+/*
+ * LIGHT THEME (placeholder for future implementation)
+ * Uncomment and customize when adding light theme support.
+ */
+/*
+[data-theme="light"] {
+  --color-bg-base: hsl(220, 15%, 96%);
+  --color-bg-surface: hsl(220, 15%, 100%);
+  --color-bg-elevated: hsl(220, 15%, 98%);
+  --color-bg-hover: hsl(220, 15%, 92%);
+  --color-bg-active: hsl(220, 15%, 88%);
+  --color-bg-overlay: hsla(220, 15%, 20%, 0.5);
+
+  --color-fg-primary: hsl(220, 15%, 15%);
+  --color-fg-secondary: hsl(220, 10%, 35%);
+  --color-fg-muted: hsl(220, 8%, 55%);
+  --color-fg-faint: hsl(220, 6%, 65%);
+
+  --color-border-default: hsl(220, 10%, 82%);
+  --color-border-subtle: hsl(220, 10%, 88%);
+  --color-border-strong: hsl(220, 10%, 70%);
+
+  --color-accent-primary: hsl(190, 45%, 42%);
+  --color-accent-primary-hover: hsl(190, 48%, 38%);
+  --color-accent-secondary: hsl(220, 40%, 50%);
+  --color-accent-muted: hsl(190, 30%, 90%);
+
+  --color-terminal-bg: hsl(220, 15%, 98%);
+  --color-terminal-fg: hsl(220, 15%, 20%);
+}
+*/
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
     Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-bg-base);
+  color: var(--color-fg-primary);
+}
+
+/* Terminal output scrollbar styling */
+.terminal-output::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal-output::-webkit-scrollbar-track {
+  background: var(--color-bg-base);
+}
+
+.terminal-output::-webkit-scrollbar-thumb {
+  background: var(--color-border-default);
+  border-radius: 4px;
+}
+
+.terminal-output::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-strong);
 }
