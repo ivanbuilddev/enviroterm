@@ -10,6 +10,7 @@ interface TerminalViewProps {
   isFocused?: boolean;
   autoRunClaude?: boolean;
   initialCommand?: string;
+  isReadOnlyResize?: boolean;
 }
 
 /**
@@ -41,11 +42,14 @@ function manualFit(terminal: Terminal | null, container: HTMLDivElement | null):
   return { cols, rows };
 }
 
-export function TerminalView({ sessionId, sessionName, folderPath, isFocused, autoRunClaude = true, initialCommand }: TerminalViewProps) {
+export function TerminalView({ sessionId, sessionName, folderPath, isFocused, autoRunClaude = true, initialCommand, isReadOnlyResize = false }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const [term, setTerm] = useState<Terminal | null>(null);
   const [isOpened, setIsOpened] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [pixelWidth, setPixelWidth] = useState(1000);
+  const [pixelHeight, setPixelHeight] = useState(1000);
   const spawnedRef = useRef(false);
 
   // 1. Initialize terminal instance on mount
@@ -80,7 +84,6 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, au
     // Crucial Guard: Wait until container actually has size
     if (container.clientWidth === 0 || container.clientHeight === 0) {
       const timer = setTimeout(() => {
-        // Toggle a state to force re-evaluation if needed
         setIsOpened(false);
       }, 100);
       return () => clearTimeout(timer);
@@ -90,18 +93,81 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, au
       term.open(container);
       setIsOpened(true);
 
-      // Initial fit after opening
-      setTimeout(() => {
-        const result = manualFit(term, container);
-        if (result) {
-          term.resize(result.cols, result.rows);
-          window.electronAPI.terminal.resize(sessionId, result.cols, result.rows);
-        }
-      }, 150);
+      // Initial fit after opening (Desktop only)
+      if (!isReadOnlyResize) {
+        setTimeout(() => {
+          const result = manualFit(term, container);
+          if (result) {
+            term.resize(result.cols, result.rows);
+            window.electronAPI.terminal.resize(sessionId, result.cols, result.rows);
+          }
+        }, 150);
+      }
     } catch (e) {
       console.warn('Deferred terminal open failed', e);
     }
-  }, [term, isOpened, sessionId]);
+  }, [term, isOpened, sessionId, isReadOnlyResize]);
+
+  // Handle scaling and pixel-perfect dimensions (Mobile only)
+  useEffect(() => {
+    if (!isReadOnlyResize || !term || !containerRef.current || !isOpened) return;
+
+    const updateScaleAndPixels = () => {
+      const container = containerRef.current;
+      const parent = container?.parentElement;
+      if (!container || !parent) return;
+
+      const termAny = term as any;
+      const core = termAny._core;
+      const cellWidth = core._renderService?.dimensions?.css?.cell?.width;
+      const cellHeight = core._renderService?.dimensions?.css?.cell?.height;
+
+      if (!cellWidth || term.cols === 0) return;
+
+      // Force pixel dimensions to match the actual terminal layout
+      const calculatedWidth = term.cols * cellWidth;
+      const calculatedHeight = term.rows * cellHeight;
+      setPixelWidth(calculatedWidth);
+      setPixelHeight(calculatedHeight);
+
+      // Scale to fit the mobile screen width
+      const availableWidth = parent.clientWidth - 16; // 16px padding
+      if (calculatedWidth > availableWidth) {
+        setScale(availableWidth / calculatedWidth);
+      } else {
+        setScale(1);
+      }
+    };
+
+    const resizeObserver = new ResizeObserver(updateScaleAndPixels);
+    resizeObserver.observe(containerRef.current.parentElement!);
+
+    // Also listen for remote dimension updates
+    const handleRemoteDimensions = (event: any) => {
+      if (event.detail.sessionId === sessionId) {
+        term.resize(event.detail.cols, event.detail.rows);
+        updateScaleAndPixels();
+      }
+    };
+
+    const handleReset = (event: any) => {
+      if (event.detail.sessionId === sessionId) {
+        term.reset();
+      }
+    };
+
+    window.addEventListener('terminal:dimensions' as any, handleRemoteDimensions);
+    window.addEventListener('terminal:reset' as any, handleReset);
+
+    // Initial calculation
+    setTimeout(updateScaleAndPixels, 200);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('terminal:dimensions' as any, handleRemoteDimensions);
+      window.removeEventListener('terminal:reset' as any, handleReset);
+    };
+  }, [term, isOpened, isReadOnlyResize, sessionId]);
 
   // 3. Handle PTY communication
   useEffect(() => {
@@ -121,16 +187,81 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, au
       window.electronAPI.terminal.spawn(sessionId, folderPath, sessionName, autoRunClaude);
       spawnedRef.current = true;
 
-      // Handle initial command execution
       if (initialCommand) {
         setTimeout(() => {
           window.electronAPI.terminal.write(sessionId, initialCommand + '\r');
-        }, 1000); // Wait for shell to be ready
+        }, 1000);
       }
     }
 
     return () => unsubData();
   }, [term, isOpened, sessionId, folderPath, initialCommand]);
+
+  // 4. Handle remote paste (Image from mobile)
+  useEffect(() => {
+    if (!term || !isOpened) return;
+
+    const handleImagePaste = async (imageData: any) => {
+      console.log('[TerminalView] handleImagePaste called with:', { name: imageData?.name, type: imageData?.type, hasBase64: !!imageData?.base64 });
+      const { name, type, base64 } = imageData;
+      try {
+        // Focus the terminal first
+        term.focus();
+
+        // For images, use Electron's clipboard API to write the image
+        // Then simulate Alt+V which is Claude CLI's paste command
+        if (type.startsWith('image/') && (window.electronAPI as any).clipboard?.writeImage) {
+          const success = await (window.electronAPI as any).clipboard.writeImage(base64);
+          if (success) {
+            console.log('[TerminalView] Image written to clipboard, triggering Alt+V paste');
+
+            // Send Alt+V keystroke to the terminal (Claude CLI paste command)
+            // We need to write the escape sequence for Alt+V to the PTY
+            // Alt+V in terminal is typically sent as ESC followed by 'v' or as \x1bv
+            window.electronAPI.terminal.write(sessionId, '\x1bv');
+
+            console.log('[TerminalView] Sent Alt+V (\\x1bv) to terminal');
+            return;
+          }
+        }
+
+        // Fallback: Dispatch ClipboardEvent with file data
+        const response = await fetch(base64);
+        const blob = await response.blob();
+        const file = new File([blob], name, { type });
+
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+
+        const pasteEvent = new ClipboardEvent('paste', {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: dataTransfer,
+        });
+
+        const target = containerRef.current?.querySelector('.xterm-helper-textarea') as HTMLTextAreaElement | null;
+        if (target) {
+          target.focus();
+          target.dispatchEvent(pasteEvent);
+        } else {
+          document.dispatchEvent(pasteEvent);
+        }
+
+        console.log('[TerminalView] Paste event dispatched');
+      } catch (err) {
+        console.error('[TerminalView] Remote paste failed:', err);
+      }
+    };
+
+    const unsubPaste = (window.electronAPI.terminal as any).onRemotePaste((data: any) => {
+      console.log('[TerminalView] onRemotePaste received:', { sessionId: data.sessionId, mySessionId: sessionId });
+      if (data.sessionId === sessionId) {
+        handleImagePaste(data.data);
+      }
+    });
+
+    return () => unsubPaste();
+  }, [term, isOpened, sessionId]);
 
   // 4. Handle programmatic focus
   useEffect(() => {
@@ -139,10 +270,10 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, au
     }
   }, [term, isFocused]);
 
-  // 4. Handle resize
+  // 4. Handle resize (Desktop only)
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || !term || !isOpened) return;
+    if (!container || !term || !isOpened || isReadOnlyResize) return;
 
     const resizeObserver = new ResizeObserver(() => {
       const result = manualFit(term, container);
@@ -154,11 +285,22 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, au
 
     resizeObserver.observe(container);
     return () => resizeObserver.disconnect();
-  }, [term, isOpened, sessionId]);
+  }, [term, isOpened, sessionId, isReadOnlyResize]);
 
   return (
-    <div className="w-full h-full bg-[#0d1117] p-4 overflow-hidden">
-      <div className="w-full h-full overflow-hidden" ref={containerRef} style={{ overflowX: 'hidden' }} />
+    <div className="w-full h-full bg-[#0d1117] overflow-hidden relative p-2">
+      <div
+        ref={containerRef}
+        className="overflow-hidden origin-top-left transition-transform duration-200"
+        style={{
+          transform: `scale(${scale})`,
+          width: isReadOnlyResize ? `${pixelWidth}px` : '100%',
+          height: isReadOnlyResize ? `${pixelHeight}px` : '100%',
+          position: isReadOnlyResize ? 'absolute' : 'relative',
+          top: 0,
+          left: isReadOnlyResize ? '8px' : 0
+        }}
+      />
     </div>
   );
 }

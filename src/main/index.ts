@@ -1,8 +1,9 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, clipboard, nativeImage } from 'electron';
 import path from 'path';
 import { registerWorkspaceHandlers } from './ipc/workspaceHandlers';
 import { registerTerminalHandlers } from './ipc/terminalHandlers';
 import { terminalService } from './services/TerminalService';
+import { remoteService } from './services/RemoteService';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -25,6 +26,7 @@ function createWindow(): void {
 
   if (process.env.ELECTRON_RENDERER_URL) {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
+    remoteService.setRendererUrl(process.env.ELECTRON_RENDERER_URL);
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
@@ -55,6 +57,19 @@ function createWindow(): void {
   // Get webview preload path
   ipcMain.handle('get-webview-preload-path', () => {
     return path.join(__dirname, '../preload/webview.js');
+  });
+
+  // Clipboard - write image
+  ipcMain.handle('clipboard:writeImage', (_, base64DataUrl: string) => {
+    try {
+      const img = nativeImage.createFromDataURL(base64DataUrl);
+      clipboard.writeImage(img);
+      console.log('[Main] Image written to clipboard');
+      return true;
+    } catch (err) {
+      console.error('[Main] Failed to write image to clipboard:', err);
+      return false;
+    }
   });
 }
 

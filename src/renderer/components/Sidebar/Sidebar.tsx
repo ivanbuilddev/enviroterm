@@ -5,6 +5,7 @@ import { Directory, Session } from '../../../shared/types';
 import { DirectoryIcon } from './DirectoryIcon';
 import { AddDirectoryButton } from './AddDirectoryButton';
 import { DirectoryPopover } from './DirectoryPopover';
+import { RemoteQRCodeModal } from '../Remote/RemoteQRCodeModal';
 
 interface SidebarProps {
   directories: Directory[];
@@ -41,6 +42,7 @@ export function Sidebar({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [hoveredSessions, setHoveredSessions] = useState<Session[]>([]);
   const [popoverPos, setPopoverPos] = useState({ top: 0, left: 0 });
+  const [remoteModalData, setRemoteModalData] = useState<{ id: string; path: string } | null>(null);
   const popoverTimerRef = useRef<any>(null);
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
@@ -126,6 +128,10 @@ export function Sidebar({
                   onSelectSession={(sessionId) => onSelectSession(directory.id, sessionId)}
                   onDeleteDirectory={() => onDeleteDirectory(directory.id)}
                   onOpenInVSCode={() => onOpenInVSCode(directory.path)}
+                  onSendToPhone={() => {
+                    setRemoteModalData({ id: directory.id, path: directory.path });
+                    setHoveredId(null);
+                  }}
                 />
               </div>,
               document.body
@@ -134,6 +140,14 @@ export function Sidebar({
         ))}
         <AddDirectoryButton onClick={onAddDirectory} />
       </div>
+
+      {remoteModalData && (
+        <RemoteQRCodeModal
+          directoryId={remoteModalData.id}
+          directoryPath={remoteModalData.path}
+          onClose={() => setRemoteModalData(null)}
+        />
+      )}
 
       {/* Action buttons fixed at bottom */}
       <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center gap-2 py-3 border-t border-border bg-bg-elevated">
@@ -146,22 +160,20 @@ export function Sidebar({
         </button>
         <button
           onClick={onToggleBrowserPanel}
-          className={`w-10 h-10 flex items-center justify-center border transition-all duration-150 ${
-            isBrowserPanelVisible
+          className={`w-10 h-10 flex items-center justify-center border transition-all duration-150 ${isBrowserPanelVisible
               ? 'bg-accent-primary/20 border-accent-primary text-accent-primary'
               : 'bg-bg-surface border-border text-fg-muted hover:text-fg-primary hover:border-accent-primary hover:bg-bg-hover'
-          }`}
+            }`}
           title={isBrowserPanelVisible ? "Close Browser" : "Open Browser"}
         >
           <Globe size={18} />
         </button>
         <button
           onClick={onToggleBottomPanel}
-          className={`w-10 h-10 flex items-center justify-center border transition-all duration-150 ${
-            isBottomPanelVisible
+          className={`w-10 h-10 flex items-center justify-center border transition-all duration-150 ${isBottomPanelVisible
               ? 'bg-accent-primary/20 border-accent-primary text-accent-primary'
               : 'bg-bg-surface border-border text-fg-muted hover:text-fg-primary hover:border-accent-primary hover:bg-bg-hover'
-          }`}
+            }`}
           title={isBottomPanelVisible ? "Close Panel" : "Open Panel"}
         >
           <PanelBottom size={18} />

@@ -1,5 +1,6 @@
 import * as pty from 'node-pty';
 import { BrowserWindow } from 'electron';
+import { remoteService } from './RemoteService';
 
 interface TerminalState {
   pty: pty.IPty;
@@ -10,8 +11,10 @@ interface TerminalState {
 class TerminalService {
   private terminals: Map<string, TerminalState> = new Map();
   private buffers: Map<string, string[]> = new Map();
+  private dimensions: Map<string, { cols: number, rows: number }> = new Map();
+  private listeners: Map<string, boolean> = new Map(); // sessionId -> hasListener
   private mainWindow: BrowserWindow | null = null;
-  private readonly MAX_BUFFER_LINES = 1000;
+  private readonly MAX_BUFFER_LINES = 5000;
 
   // Prompt patterns to detect when command finishes
   // These patterns indicate the shell is waiting for input
@@ -40,20 +43,13 @@ class TerminalService {
    * @param autoRunClaude - If true, automatically runs 'claude' command after shell starts
    */
   spawn(sessionId: string, folderPath: string, sessionName: string = 'Unknown', autoRunClaude: boolean = true): boolean {
-    // If already exists, replay the buffer to the new requester
     if (this.terminals.has(sessionId)) {
-      const buffer = this.buffers.get(sessionId) || [];
-      buffer.forEach(data => {
-        this.mainWindow?.webContents.send('terminal:data', { sessionId, data });
-      });
       return true;
     }
 
-    // Determine shell based on platform
     const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
 
     try {
-      // Spawn PTY with cwd set to folder path
       const ptyProcess = pty.spawn(shell, [], {
         name: 'xterm-color',
         cols: 80,
@@ -62,48 +58,45 @@ class TerminalService {
         env: process.env as Record<string, string>,
       });
 
-      // Store reference and init buffer
       this.terminals.set(sessionId, {
         pty: ptyProcess,
         name: sessionName,
         isExecuting: false
       });
       this.buffers.set(sessionId, []);
+      this.dimensions.set(sessionId, { cols: 80, rows: 24 });
 
-      // Forward data to renderer and buffer it
-      ptyProcess.onData((data: string) => {
-        const buffer = this.buffers.get(sessionId) || [];
-        buffer.push(data);
-        if (buffer.length > this.MAX_BUFFER_LINES) {
-          buffer.shift();
-        }
-        this.buffers.set(sessionId, buffer);
+      if (!this.listeners.has(sessionId)) {
+        this.listeners.set(sessionId, true);
+        ptyProcess.onData((data: string) => {
+          const buffer = this.buffers.get(sessionId) || [];
+          buffer.push(data);
+          if (buffer.length > this.MAX_BUFFER_LINES) {
+            buffer.shift();
+          }
+          this.buffers.set(sessionId, buffer);
 
-        // Check if command finished (prompt detected)
-        const termState = this.terminals.get(sessionId);
-        if (termState && termState.isExecuting && this.isPromptOutput(data)) {
-          termState.isExecuting = false;
-          console.log(`[Terminal] Process FINISHED in "${termState.name}"`);
-        }
+          const termState = this.terminals.get(sessionId);
+          if (termState && termState.isExecuting && this.isPromptOutput(data)) {
+            termState.isExecuting = false;
+          }
 
-        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-          this.mainWindow.webContents.send('terminal:data', { sessionId, data });
-        }
-      });
+          if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+            this.mainWindow.webContents.send('terminal:data', { sessionId, data });
+          }
+          remoteService.broadcast(sessionId, data);
+        });
 
-      // Handle exit
-      ptyProcess.onExit(({ exitCode }) => {
-        const termState = this.terminals.get(sessionId);
-        if (termState) {
-          console.log(`[Terminal] Shell EXITED in "${termState.name}" with code ${exitCode}`);
-        }
-        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-          this.mainWindow.webContents.send('terminal:exit', sessionId, exitCode);
-        }
-        this.terminals.delete(sessionId);
-      });
+        ptyProcess.onExit(({ exitCode }) => {
+          if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+            this.mainWindow.webContents.send('terminal:exit', sessionId, exitCode);
+          }
+          this.terminals.delete(sessionId);
+          this.buffers.delete(sessionId);
+          this.listeners.delete(sessionId);
+        });
+      }
 
-      // Execute claude command after shell starts (if enabled)
       if (autoRunClaude) {
         setTimeout(() => {
           ptyProcess.write('claude\r');
@@ -117,56 +110,52 @@ class TerminalService {
     }
   }
 
-  /**
-   * Write data to a terminal
-   */
   write(sessionId: string, data: string): void {
     const termState = this.terminals.get(sessionId);
     if (termState) {
-      // Detect Enter key press (carriage return) - command is starting
       if (data === '\r' || data === '\n' || data.includes('\r')) {
         if (!termState.isExecuting) {
           termState.isExecuting = true;
-          console.log(`[Terminal] Process STARTED in "${termState.name}"`);
         }
       }
       termState.pty.write(data);
     }
   }
 
-  /**
-   * Resize a terminal
-   */
   resize(sessionId: string, cols: number, rows: number): void {
     const termState = this.terminals.get(sessionId);
     if (termState) {
       termState.pty.resize(cols, rows);
+      this.dimensions.set(sessionId, { cols, rows });
+      remoteService.broadcastDimensions(sessionId, cols, rows);
     }
   }
 
-  /**
-   * Kill a specific terminal
-   */
   kill(sessionId: string): void {
     const termState = this.terminals.get(sessionId);
     if (termState) {
-      console.log(`[Terminal] Killing terminal "${termState.name}"`);
       termState.pty.kill();
       this.terminals.delete(sessionId);
       this.buffers.delete(sessionId);
+      this.listeners.delete(sessionId);
     }
   }
 
-  /**
-   * Kill all terminals (for app shutdown)
-   */
   killAll(): void {
     for (const [sessionId, termState] of this.terminals) {
-      console.log(`[Terminal] Killing terminal "${termState.name}" (shutdown)`);
       termState.pty.kill();
     }
     this.terminals.clear();
     this.buffers.clear();
+    this.listeners.clear();
+  }
+
+  getBuffer(sessionId: string): string[] {
+    return this.buffers.get(sessionId) || [];
+  }
+
+  getDimensions(sessionId: string): { cols: number, rows: number } | null {
+    return this.dimensions.get(sessionId) || null;
   }
 }
 

@@ -26,6 +26,10 @@ export default defineConfig({
   },
   renderer: {
     root: '.',
+    server: {
+      host: true,
+      hmr: false
+    },
     build: {
       outDir: 'dist/renderer',
       rollupOptions: {

@@ -1,5 +1,6 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import { terminalService } from '../services/TerminalService';
+import { remoteService } from '../services/RemoteService';
 
 export function registerTerminalHandlers(mainWindow: BrowserWindow): void {
   terminalService.setMainWindow(mainWindow);
@@ -22,5 +23,15 @@ export function registerTerminalHandlers(mainWindow: BrowserWindow): void {
   // Kill a terminal
   ipcMain.on('terminal:kill', (_, sessionId: string) => {
     terminalService.kill(sessionId);
+  });
+
+  // Remote access handlers
+  ipcMain.handle('remote:getDetails', () => {
+    const { port, ips, rendererUrl } = remoteService.start();
+    return { port, ips, rendererUrl };
+  });
+
+  ipcMain.handle('remote:generateToken', (_, directoryId: string) => {
+    return remoteService.generateToken(directoryId);
   });
 }

@@ -8,6 +8,7 @@ interface DirectoryPopoverProps {
     onSelectSession: (sessionId: string) => void;
     onDeleteDirectory: () => void;
     onOpenInVSCode: () => void;
+    onSendToPhone: () => void;
 }
 
 export function DirectoryPopover({
@@ -15,7 +16,8 @@ export function DirectoryPopover({
     sessions,
     onSelectSession,
     onDeleteDirectory,
-    onOpenInVSCode
+    onOpenInVSCode,
+    onSendToPhone
 }: DirectoryPopoverProps) {
     const createdDate = useMemo(() => {
         return new Date(directory.createdAt).toLocaleDateString(undefined, {
@@ -67,6 +69,15 @@ export function DirectoryPopover({
                 >
                     <img src={vscodeIcon} className="w-3.5 h-3.5" alt="VS Code" />
                     Open in VS Code
+                </button>
+                <button
+                    onClick={onSendToPhone}
+                    className="w-full text-left px-2 py-1.5 hover:bg-bg-hover hover:text-accent-primary text-[10px] text-fg-secondary flex items-center gap-2 transition-colors"
+                >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    Send to Phone
                 </button>
                 <button
                     onClick={onDeleteDirectory}

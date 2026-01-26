@@ -19,8 +19,13 @@ export function CustomTerminal({
   const outputAreaRef = useRef<HTMLDivElement>(null);
   const spawnedRef = useRef(false);
 
-  const { lines, bufferSpans, addData, getBufferText } = useTerminalOutput();
+  const { lines, bufferSpans, addData, getBufferText, clear } = useTerminalOutput();
   const { activePrompt, dismissPrompt } = usePromptDetection(lines, getBufferText);
+
+  // Clear lines when session changes
+  useEffect(() => {
+    clear();
+  }, [sessionId, clear]);
 
   // Handle incoming PTY data
   useEffect(() => {

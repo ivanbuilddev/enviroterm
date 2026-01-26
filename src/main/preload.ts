@@ -1,6 +1,9 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  clipboard: {
+    writeImage: (base64DataUrl: string) => ipcRenderer.invoke('clipboard:writeImage', base64DataUrl),
+  },
   directories: {
     getAll: () => ipcRenderer.invoke('directories:getAll'),
     create: () => ipcRenderer.invoke('directories:create'),
@@ -39,6 +42,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.removeListener('terminal:exit', handler);
       };
     },
+    onRemotePaste: (callback: (data: { sessionId: string; data: any }) => void) => {
+      const handler = (_event: IpcRendererEvent, data: { sessionId: string; data: any }) => callback(data);
+      ipcRenderer.on('terminal:remote-paste', handler);
+      return () => {
+        ipcRenderer.removeListener('terminal:remote-paste', handler);
+      };
+    },
   },
   window: {
     minimize: () => ipcRenderer.send('window:minimize'),
@@ -49,4 +59,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
   },
   getWebviewPreloadPath: () => ipcRenderer.invoke('get-webview-preload-path'),
+  remote: {
+    getDetails: () => ipcRenderer.invoke('remote:getDetails'),
+    generateToken: (directoryId: string) => ipcRenderer.invoke('remote:generateToken', directoryId),
+  }
 });

@@ -4,8 +4,13 @@ import { TerminalManager } from './components/Terminal/TerminalManager';
 import { BottomPanel, BottomPanelHandle } from './components/BottomPanel/BottomPanel';
 import { BrowserPanel } from './components/BrowserPanel/BrowserPanel';
 import { useWorkspace } from './hooks/useWorkspace';
+import { MobileApp } from './components/Remote/MobileApp';
 
 function App() {
+  if (!window.electronAPI) {
+    return <MobileApp />;
+  }
+
   const {
     directories,
     activeDirectoryId,

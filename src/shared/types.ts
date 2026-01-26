@@ -65,6 +65,11 @@ export interface ElectronAPI {
   shell: {
     openExternal: (url: string) => Promise<void>;
   };
+  remote: {
+    getDetails: () => Promise<{ port: number; ips: string[]; rendererUrl: string }>;
+    generateToken: (directoryId: string) => Promise<string>;
+  };
+  getWebviewPreloadPath: () => Promise<string>;
 }
 
 // Augment window object for TypeScript
