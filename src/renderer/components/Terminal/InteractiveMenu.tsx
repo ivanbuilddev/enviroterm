@@ -31,7 +31,7 @@ export function InteractiveMenu({
 
   return (
     <div className="absolute bottom-16 right-4 z-10">
-      <div className="bg-bg-elevated border border-border rounded-lg shadow-lg p-4 min-w-[200px] max-w-[400px]">
+      <div className="bg-bg-elevated border border-border shadow-lg p-4 min-w-[200px] max-w-[400px]">
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <span className="text-fg-secondary text-sm font-medium">
@@ -40,7 +40,7 @@ export function InteractiveMenu({
           <button
             onClick={onDismiss}
             className="text-fg-muted hover:text-fg-secondary text-lg leading-none
-                       w-6 h-6 flex items-center justify-center rounded hover:bg-bg-hover"
+                       w-6 h-6 flex items-center justify-center hover:bg-bg-hover"
             aria-label="Dismiss"
           >
             ×

@@ -1,10 +1,19 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  directories: {
+    getAll: () => ipcRenderer.invoke('directories:getAll'),
+    create: () => ipcRenderer.invoke('directories:create'),
+    updateLastAccessed: (id: string) => ipcRenderer.invoke('directories:updateLastAccessed', id),
+    rename: (id: string, name: string) => ipcRenderer.invoke('directories:rename', id, name),
+    delete: (id: string) => ipcRenderer.invoke('directories:delete', id),
+    reorder: (ids: string[]) => ipcRenderer.invoke('directories:reorder', ids),
+    openInVSCode: (path: string) => ipcRenderer.invoke('directories:openInVSCode', path),
+  },
   sessions: {
-    getAll: () => ipcRenderer.invoke('sessions:getAll'),
-    create: () => ipcRenderer.invoke('sessions:create'),
-    updateLastAccessed: (id: string) => ipcRenderer.invoke('sessions:updateLastAccessed', id),
+    getByDirectory: (directoryId: string) => ipcRenderer.invoke('sessions:getByDirectory', directoryId),
+    create: (directoryId: string, name?: string) => ipcRenderer.invoke('sessions:create', directoryId, name),
+    rename: (id: string, name: string) => ipcRenderer.invoke('sessions:rename', id, name),
     delete: (id: string) => ipcRenderer.invoke('sessions:delete', id),
   },
   terminal: {
@@ -30,5 +39,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.removeListener('terminal:exit', handler);
       };
     },
+  },
+  window: {
+    minimize: () => ipcRenderer.send('window:minimize'),
+    maximize: () => ipcRenderer.send('window:maximize'),
+    close: () => ipcRenderer.send('window:close'),
   },
 });

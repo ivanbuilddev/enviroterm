@@ -1,0 +1,189 @@
+import Store from 'electron-store';
+import { randomUUID } from 'crypto';
+import path from 'path';
+import { Directory, Session } from '../../shared/types';
+
+interface StoreSchema {
+  directories: Directory[];
+  sessions: Session[];
+  // Keep the old key for migration
+  sessions_old?: any[];
+}
+
+const store = new Store<StoreSchema>({
+  name: 'workspace', // New store name for new architecture
+  defaults: {
+    directories: [],
+    sessions: []
+  }
+});
+
+// Migration logic: If old 'sessions' config exists, migrate it
+const oldStore = new Store({ name: 'sessions' });
+if (oldStore.has('sessions') && store.get('directories').length === 0) {
+  const oldSessions = oldStore.get('sessions') as any[];
+  const directories: Directory[] = [];
+  const sessions: Session[] = [];
+
+  oldSessions.forEach(old => {
+    const dirId = old.id || randomUUID();
+    directories.push({
+      id: dirId,
+      path: old.folderPath || '',
+      name: old.folderName || '',
+      backgroundColor: old.backgroundColor || 'hsl(220, 16%, 10%)',
+      textColor: old.textColor || 'hsl(0, 0%, 95%)',
+      lastAccessedAt: old.lastAccessedAt || Date.now(),
+      createdAt: old.createdAt || Date.now()
+    });
+
+    // Create a default session for this directory
+    sessions.push({
+      id: randomUUID(),
+      directoryId: dirId,
+      name: old.folderName || 'Default Terminal',
+      lastAccessedAt: old.lastAccessedAt || Date.now(),
+      createdAt: old.createdAt || Date.now()
+    });
+  });
+
+  store.set('directories', directories);
+  store.set('sessions', sessions);
+  // We don't delete oldStore to be safe, but we've migrated
+}
+
+function generateRandomColor(): string {
+  const hue = Math.floor(Math.random() * 360);
+  const saturation = 60 + Math.floor(Math.random() * 15);
+  const lightness = 45 + Math.floor(Math.random() * 10);
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}
+
+function getContrastTextColor(hslColor: string): string {
+  const match = hslColor.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
+  if (!match) return 'hsl(0, 0%, 95%)';
+  const lightness = parseInt(match[3], 10);
+  return lightness > 55 ? 'hsl(0, 0%, 15%)' : 'hsl(0, 0%, 95%)';
+}
+
+export const WorkspaceStore = {
+  // --- DIRECTORY METHODS ---
+  getDirectories(): Directory[] {
+    return store.get('directories');
+  },
+
+  createDirectory(folderPath: string): Directory {
+    const now = Date.now();
+    const folderName = folderPath; // The name is the full path
+    const backgroundColor = generateRandomColor();
+
+    const directory: Directory = {
+      id: randomUUID(),
+      path: folderPath,
+      name: folderName,
+      backgroundColor,
+      textColor: getContrastTextColor(backgroundColor),
+      lastAccessedAt: now,
+      createdAt: now
+    };
+
+    const directories = store.get('directories');
+    directories.push(directory);
+    store.set('directories', directories);
+
+    // Create an initial session for this directory
+    this.createSession(directory.id, folderName);
+
+    return directory;
+  },
+
+  updateDirectoryLastAccessed(id: string): void {
+    const directories = store.get('directories');
+    const index = directories.findIndex(d => d.id === id);
+    if (index !== -1) {
+      directories[index].lastAccessedAt = Date.now();
+      store.set('directories', directories);
+    }
+  },
+
+  renameDirectory(id: string, newName: string): void {
+    const directories = store.get('directories');
+    const index = directories.findIndex(d => d.id === id);
+    if (index !== -1) {
+      directories[index].name = newName;
+      store.set('directories', directories);
+    }
+  },
+
+  deleteDirectory(id: string): void {
+    const directories = store.get('directories').filter(d => d.id !== id);
+    store.set('directories', directories);
+    // Also delete associated sessions
+    const sessions = store.get('sessions').filter(s => s.directoryId !== id);
+    store.set('sessions', sessions);
+  },
+
+  reorderDirectories(ids: string[]): void {
+    const directories = store.get('directories');
+    const reordered = ids.map(id => directories.find(d => d.id === id)).filter(Boolean) as Directory[];
+
+    // Add any directories that might have been missing from the IDs list (safety)
+    const missing = directories.filter(d => !ids.includes(d.id));
+    store.set('directories', [...reordered, ...missing]);
+  },
+
+  // --- SESSION METHODS ---
+  getSessionsByDirectory(directoryId: string): Session[] {
+    return store.get('sessions').filter(s => s.directoryId === directoryId);
+  },
+
+  createSession(directoryId: string, name?: string): Session {
+    const now = Date.now();
+    const session: Session = {
+      id: randomUUID(),
+      directoryId,
+      name: name || 'Terminal',
+      lastAccessedAt: now,
+      createdAt: now
+    };
+
+    const sessions = store.get('sessions');
+    sessions.push(session);
+    store.set('sessions', sessions);
+    return session;
+  },
+
+  renameSession(id: string, newName: string): void {
+    const sessions = store.get('sessions');
+    const index = sessions.findIndex(s => s.id === id);
+    if (index !== -1) {
+      sessions[index].name = newName;
+      store.set('sessions', sessions);
+    }
+  },
+
+  deleteSession(id: string): void {
+    const sessions = store.get('sessions').filter(s => s.id !== id);
+    store.set('sessions', sessions);
+  },
+
+  resetSessions(): void {
+    const directories = store.get('directories');
+    const newSessions: Session[] = [];
+
+    directories.forEach(dir => {
+      newSessions.push({
+        id: randomUUID(),
+        directoryId: dir.id,
+        name: 'Terminal 1',
+        lastAccessedAt: Date.now(),
+        createdAt: Date.now()
+      });
+    });
+
+    store.set('sessions', newSessions);
+  }
+};
+
+// Reset sessions on startup
+WorkspaceStore.resetSessions();

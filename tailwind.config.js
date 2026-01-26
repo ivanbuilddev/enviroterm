@@ -59,6 +59,10 @@ export default {
       borderColor: {
         DEFAULT: 'var(--color-border-default)',
       },
+      fontFamily: {
+        header: ['"Outfit"', 'sans-serif'],
+        text: ['"Source Code Pro"', 'monospace'],
+      },
     },
   },
   plugins: [],

@@ -22,11 +22,11 @@ export function PromptButton({
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-2 rounded border transition-colors font-medium
+      className={`px-4 py-2 border transition-colors font-medium
                   flex items-center gap-2 ${variantClasses[variant]}`}
     >
       {option.shortcut && (
-        <kbd className="px-1.5 py-0.5 bg-bg-active rounded text-xs font-mono">
+        <kbd className="px-1.5 py-0.5 bg-bg-active text-xs font-mono">
           {option.shortcut}
         </kbd>
       )}

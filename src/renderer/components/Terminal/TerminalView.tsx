@@ -1,230 +1,150 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Terminal } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
-import { InteractivePrompt } from '../../../shared/terminalTypes';
-import { PromptDetector } from '../../services/PromptDetector';
-import { InteractiveMenu } from './InteractiveMenu';
 
 interface TerminalViewProps {
   sessionId: string;
   folderPath: string;
   isVisible: boolean;
+  isFocused?: boolean;
 }
 
 /**
- * Safely fit the terminal, checking that container has dimensions
+ * Robust manual fit logic that doesn't rely on FitAddon
  */
-function safeFit(fitAddon: FitAddon | null, container: HTMLDivElement | null): boolean {
-  if (!fitAddon || !container) return false;
+function manualFit(terminal: Terminal | null, container: HTMLDivElement | null): { cols: number, rows: number } | null {
+  if (!terminal || !container || !terminal.element) return null;
 
-  // Check container has actual dimensions
+  const termAny = terminal as any;
+  const renderer = termAny.renderer || (termAny._core && termAny._core.renderer);
+  if (!renderer || !renderer.dimensions) return null;
+
+  const dims = renderer.dimensions;
+  if (!dims.device || dims.device.cell.width === 0 || dims.device.cell.height === 0) return null;
+
   const { clientWidth, clientHeight } = container;
-  if (clientWidth === 0 || clientHeight === 0) return false;
+  if (clientWidth === 0 || clientHeight === 0) return null;
 
-  try {
-    fitAddon.fit();
-    return true;
-  } catch (e) {
-    console.warn('Failed to fit terminal:', e);
-    return false;
-  }
+  // Use the internal character measurements to calculate cols/rows
+  const cols = Math.floor(clientWidth / (dims.device.cell.width / window.devicePixelRatio));
+  const rows = Math.floor(clientHeight / (dims.device.cell.height / window.devicePixelRatio));
+
+  if (cols <= 0 || rows <= 0) return null;
+
+  return { cols, rows };
 }
 
-export function TerminalView({ sessionId, folderPath, isVisible }: TerminalViewProps) {
+export function TerminalView({ sessionId, folderPath, isVisible, isFocused }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
-  const fitAddonRef = useRef<FitAddon | null>(null);
+  const [term, setTerm] = useState<Terminal | null>(null);
+  const [isOpened, setIsOpened] = useState(false);
   const spawnedRef = useRef(false);
-  const initializedRef = useRef(false);
 
-  const [activePrompt, setActivePrompt] = useState<InteractivePrompt | null>(null);
-  const lastPromptRawRef = useRef<string | null>(null);
-  const detectorRef = useRef(new PromptDetector());
-
-  const handleOptionSelect = useCallback((value: string, index: number) => {
-    console.log('[TerminalView] Option selected:', value, 'index:', index);
-    // Send value followed by Enter to the PTY
-    window.electronAPI.terminal.write(sessionId, value + '\r');
-    setActivePrompt(null);
-  }, [sessionId]);
-
-  const dismissPrompt = useCallback(() => {
-    setActivePrompt(null);
-  }, []);
-
-  // Initialize terminal once on mount
+  // 1. Initialize terminal instance on mount
   useEffect(() => {
-    if (!containerRef.current || initializedRef.current) return;
-
-    // Wait for container to have dimensions
-    const container = containerRef.current;
-    if (container.clientWidth === 0 || container.clientHeight === 0) {
-      // Container not ready, will retry via ResizeObserver
-      return;
-    }
-
-    initializedRef.current = true;
-
     const terminal = new Terminal({
       cursorBlink: true,
-      fontFamily: 'Consolas, "Courier New", monospace',
+      fontFamily: '"Source Code Pro", monospace',
       fontSize: 14,
+      allowProposedApi: true,
       theme: {
         background: '#0d1117',
         foreground: '#c9d1d9',
         cursor: '#58a6ff',
-        cursorAccent: '#0d1117',
-        selectionBackground: '#3b5070',
-        black: '#0d1117',
-        red: '#f85149',
-        green: '#3fb950',
-        yellow: '#d29922',
-        blue: '#58a6ff',
-        magenta: '#bc8cff',
-        cyan: '#39c5cf',
-        white: '#c9d1d9',
-        brightBlack: '#6e7681',
-        brightRed: '#ff7b72',
-        brightGreen: '#56d364',
-        brightYellow: '#e3b341',
-        brightBlue: '#79c0ff',
-        brightMagenta: '#d2a8ff',
-        brightCyan: '#56d4dd',
-        brightWhite: '#f0f6fc',
       },
     });
 
-    const fitAddon = new FitAddon();
-    terminal.loadAddon(fitAddon);
-    terminal.open(container);
-
+    setTerm(terminal);
     terminalRef.current = terminal;
-    fitAddonRef.current = fitAddon;
 
-    // Delay initial fit to ensure DOM is ready
-    requestAnimationFrame(() => {
-      if (safeFit(fitAddon, container) && terminalRef.current) {
-        window.electronAPI.terminal.resize(
-          sessionId,
-          terminalRef.current.cols,
-          terminalRef.current.rows
-        );
-      }
-    });
+    return () => {
+      terminal.dispose();
+      terminalRef.current = null;
+    };
+  }, []);
 
-    // Handle incoming data from PTY
+  // 2. Open and attach terminal when container is ready
+  useEffect(() => {
+    if (!term || !containerRef.current || isOpened) return;
+
+    const container = containerRef.current;
+
+    // Crucial Guard: Wait until container actually has size
+    if (container.clientWidth === 0 || container.clientHeight === 0) {
+      const timer = setTimeout(() => {
+        // Toggle a state to force re-evaluation if needed
+        setIsOpened(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+
+    try {
+      term.open(container);
+      setIsOpened(true);
+
+      // Initial fit after opening
+      setTimeout(() => {
+        const result = manualFit(term, container);
+        if (result) {
+          term.resize(result.cols, result.rows);
+          window.electronAPI.terminal.resize(sessionId, result.cols, result.rows);
+        }
+      }, 150);
+    } catch (e) {
+      console.warn('Deferred terminal open failed', e);
+    }
+  }, [term, isOpened, sessionId]);
+
+  // 3. Handle PTY communication
+  useEffect(() => {
+    if (!term || !isOpened) return;
+
     const unsubData = window.electronAPI.terminal.onData((data) => {
       if (data.sessionId === sessionId) {
-        terminal.write(data.data);
-
-        // Run prompt detection after a short delay
-        setTimeout(() => {
-          const buffer = terminal.buffer.active;
-          const lines: string[] = [];
-
-          // Get last 20 lines from the buffer
-          for (let i = Math.max(0, buffer.length - 20); i < buffer.length; i++) {
-            const line = buffer.getLine(i);
-            if (line) {
-              lines.push(line.translateToString(true));
-            }
-          }
-
-          const bufferText = lines.join('\n');
-          // Mock OutputLine objects for the detector (it mostly cares about the text)
-          const mockLines = lines.map((text, idx) => ({
-            id: `line-${idx}`,
-            timestamp: Date.now(),
-            spans: [{ text, style: {} }],
-            raw: text
-          }));
-
-          const detected = detectorRef.current.detectPrompt(mockLines, '');
-
-          if (detected?.raw !== lastPromptRawRef.current) {
-            lastPromptRawRef.current = detected?.raw || null;
-            setActivePrompt(detected || null);
-          }
-        }, 100);
+        term.write(data.data);
       }
     });
 
-    // Handle user input - send to PTY
-    terminal.onData((data) => {
+    term.onData((data) => {
       window.electronAPI.terminal.write(sessionId, data);
     });
 
-    // Spawn PTY process once
     if (!spawnedRef.current) {
       window.electronAPI.terminal.spawn(sessionId, folderPath);
       spawnedRef.current = true;
     }
 
-    // Cleanup only disposes terminal UI, does NOT kill PTY (keeps running in background)
-    return () => {
-      unsubData();
-      terminal.dispose();
-      terminalRef.current = null;
-      fitAddonRef.current = null;
-      initializedRef.current = false;
-    };
-  }, [sessionId, folderPath]);
+    return () => unsubData();
+  }, [term, isOpened, sessionId, folderPath]);
 
-  // Handle resize with ResizeObserver
+  // 4. Handle programmatic focus
+  useEffect(() => {
+    if (term && isFocused) {
+      term.focus();
+    }
+  }, [term, isFocused]);
+
+  // 4. Handle resize
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !term || !isOpened) return;
 
     const resizeObserver = new ResizeObserver(() => {
-      // If terminal not initialized yet, try to initialize it now
-      if (!initializedRef.current && container.clientWidth > 0 && container.clientHeight > 0) {
-        // Trigger re-render to initialize
-        return;
-      }
-
-      if (safeFit(fitAddonRef.current, container) && terminalRef.current) {
-        window.electronAPI.terminal.resize(
-          sessionId,
-          terminalRef.current.cols,
-          terminalRef.current.rows
-        );
+      const result = manualFit(term, container);
+      if (result) {
+        term.resize(result.cols, result.rows);
+        window.electronAPI.terminal.resize(sessionId, result.cols, result.rows);
       }
     });
 
     resizeObserver.observe(container);
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [sessionId]);
-
-  // Refit when visibility changes
-  useEffect(() => {
-    if (isVisible) {
-      // Delay to allow layout to settle after visibility change
-      const timer = setTimeout(() => {
-        if (safeFit(fitAddonRef.current, containerRef.current) && terminalRef.current) {
-          window.electronAPI.terminal.resize(
-            sessionId,
-            terminalRef.current.cols,
-            terminalRef.current.rows
-          );
-        }
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [isVisible, sessionId]);
+    return () => resizeObserver.disconnect();
+  }, [term, isOpened, sessionId]);
 
   return (
-    <div className="w-full h-full relative" ref={containerRef}>
-      {activePrompt && (
-        <InteractiveMenu
-          prompt={activePrompt}
-          onSelect={handleOptionSelect}
-          onDismiss={dismissPrompt}
-        />
-      )}
+    <div className="w-full h-full bg-[#0d1117] p-4">
+      <div className="w-full h-full overflow-hidden" ref={containerRef} />
     </div>
   );
 }

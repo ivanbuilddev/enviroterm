@@ -66,8 +66,27 @@ export class AnsiParser {
   }
 
   private handleControlCodes(text: string): string {
-    return text
-      // Cursor movement (up, down, forward, back)
+    // Process carriage returns (\r) - they should reset the position to the start of the current line segment
+    // We handle this by taking the last segment after any \r
+    let processed = text;
+
+    // Handle backspaces: "abc\b" -> "ab"
+    while (processed.includes('\x08')) {
+      processed = processed.replace(/[^\x08]\x08/, '');
+      processed = processed.replace(/^\x08/, ''); // Remove leading backspaces
+    }
+
+    // Handle carriage returns: "abc\rdef" -> "def"
+    // Only if it's NOT followed by a newline (which is handled by split)
+    if (processed.includes('\r')) {
+      const segments = processed.split('\r');
+      // In a real terminal, \r moves the cursor back to start. 
+      // Simplified: we take the last non-empty segment or the last segment if all are non-empty
+      processed = segments[segments.length - 1];
+    }
+
+    return processed
+      // Cursor movement (up, down, forward, back) - just strip for now as we are line-based
       .replace(/\x1b\[\d*[ABCD]/g, '')
       // Clear screen / clear line
       .replace(/\x1b\[\d*[JK]/g, '')
@@ -78,11 +97,7 @@ export class AnsiParser {
       // Save/restore cursor
       .replace(/\x1b[78]/g, '')
       .replace(/\x1b\[s/g, '')
-      .replace(/\x1b\[u/g, '')
-      // Handle carriage return (line overwrite) - convert to newline behavior
-      .replace(/\r(?!\n)/g, '')
-      // Remove backspace sequences
-      .replace(/.\x08/g, '');
+      .replace(/\x1b\[u/g, '');
   }
 
   private parseToSpans(text: string): StyledSpan[] {
