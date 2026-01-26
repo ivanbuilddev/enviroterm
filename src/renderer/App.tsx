@@ -5,6 +5,7 @@ import { BottomPanel, BottomPanelHandle } from './components/BottomPanel/BottomP
 import { BrowserPanel } from './components/BrowserPanel/BrowserPanel';
 import { useWorkspace } from './hooks/useWorkspace';
 import { MobileApp } from './components/Remote/MobileApp';
+import { SettingsModal } from './components/Settings/SettingsModal';
 
 function App() {
   if (!window.electronAPI) {
@@ -31,6 +32,8 @@ function App() {
   const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
   const [isBottomPanelVisible, setIsBottomPanelVisible] = useState(false);
   const [isBrowserPanelVisible, setIsBrowserPanelVisible] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [workspaceSettings, setWorkspaceSettings] = useState<{ id: string; name: string } | null>(null);
 
   const bottomPanelRef = useRef<BottomPanelHandle>(null);
 
@@ -39,6 +42,10 @@ function App() {
     setFocusedSessionId(sessionId);
     // Reset focus after a bit so it can be re-triggered
     setTimeout(() => setFocusedSessionId(null), 500);
+  };
+
+  const handleOpenWorkspaceSettings = (id: string, name: string) => {
+    setWorkspaceSettings({ id, name });
   };
 
   const handleRunCommand = (command: string) => {
@@ -122,6 +129,8 @@ function App() {
               isBottomPanelVisible={isBottomPanelVisible}
               onToggleBrowserPanel={() => setIsBrowserPanelVisible(!isBrowserPanelVisible)}
               isBrowserPanelVisible={isBrowserPanelVisible}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+              onOpenWorkspaceSettings={handleOpenWorkspaceSettings}
             />
           </div>
         </div>
@@ -163,6 +172,16 @@ function App() {
         </main>
       </div>
 
+      {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
+
+      {workspaceSettings && (
+        <SettingsModal
+          directoryId={workspaceSettings.id}
+          workspaceName={workspaceSettings.name}
+          onClose={() => setWorkspaceSettings(null)}
+        />
+      )}
+
       {/* Status Bar */}
       <footer className="bg-bg-base border-t border-border px-4 py-1 text-[9px] text-fg-faint flex justify-between uppercase tracking-[0.2em]">
         <span>
@@ -175,3 +194,4 @@ function App() {
 }
 
 export default App
+

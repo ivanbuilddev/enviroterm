@@ -152,8 +152,8 @@ export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
                 key={tab.id}
                 onClick={() => setActiveTabId(tab.id)}
                 className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer border-r border-border transition-colors group ${activeTabId === tab.id
-                    ? 'bg-bg-surface text-fg-primary'
-                    : 'bg-bg-elevated text-fg-muted hover:text-fg-secondary hover:bg-bg-hover'
+                  ? 'bg-bg-surface text-fg-primary'
+                  : 'bg-bg-elevated text-fg-muted hover:text-fg-secondary hover:bg-bg-hover'
                   }`}
               >
                 <span className="text-xs whitespace-nowrap">{tab.name}</span>
@@ -191,7 +191,7 @@ export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
                   folderPath={currentDirectory}
                   isVisible={activeTabId === tab.id}
                   isFocused={activeTabId === tab.id}
-                  autoRunClaude={false}
+                  runInitialCommand={false}
                   initialCommand={tab.initialCommand}
                 />
               )}

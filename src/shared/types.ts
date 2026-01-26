@@ -34,6 +34,9 @@ export interface TerminalData {
 
 // Electron API interface exposed to renderer
 export interface ElectronAPI {
+  clipboard: {
+    writeImage: (base64DataUrl: string) => Promise<boolean>;
+  };
   directories: {
     getAll: () => Promise<Directory[]>;
     create: () => Promise<CreateDirectoryResult>;
@@ -50,7 +53,7 @@ export interface ElectronAPI {
     delete: (id: string) => Promise<void>;
   };
   terminal: {
-    spawn: (sessionId: string, folderPath: string, sessionName?: string, autoRunClaude?: boolean) => Promise<boolean>;
+    spawn: (sessionId: string, folderPath: string, sessionName?: string, initialCommand?: string) => Promise<boolean>;
     write: (sessionId: string, data: string) => void;
     resize: (sessionId: string, cols: number, rows: number) => void;
     kill: (sessionId: string) => void;
@@ -68,6 +71,11 @@ export interface ElectronAPI {
   remote: {
     getDetails: () => Promise<{ port: number; ips: string[]; rendererUrl: string }>;
     generateToken: (directoryId: string) => Promise<string>;
+  };
+  settings: {
+    get: () => Promise<any>;
+    set: (settings: any) => Promise<any>;
+    getInitialCommand: () => Promise<string>;
   };
   getWebviewPreloadPath: () => Promise<string>;
 }

@@ -8,7 +8,7 @@ interface TerminalViewProps {
   folderPath: string;
   isVisible: boolean;
   isFocused?: boolean;
-  autoRunClaude?: boolean;
+  runInitialCommand?: boolean;
   initialCommand?: string;
   isReadOnlyResize?: boolean;
 }
@@ -42,7 +42,7 @@ function manualFit(terminal: Terminal | null, container: HTMLDivElement | null):
   return { cols, rows };
 }
 
-export function TerminalView({ sessionId, sessionName, folderPath, isFocused, autoRunClaude = true, initialCommand, isReadOnlyResize = false }: TerminalViewProps) {
+export function TerminalView({ sessionId, sessionName, folderPath, isFocused, runInitialCommand = false, initialCommand, isReadOnlyResize = false }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const [term, setTerm] = useState<Terminal | null>(null);
@@ -183,19 +183,27 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, au
       window.electronAPI.terminal.write(sessionId, data);
     });
 
-    if (!spawnedRef.current) {
-      window.electronAPI.terminal.spawn(sessionId, folderPath, sessionName, autoRunClaude);
-      spawnedRef.current = true;
+    const spawnTerminal = async () => {
+      if (!spawnedRef.current) {
+        let cmd = initialCommand || '';
+        if (runInitialCommand && !initialCommand) {
+          try {
+            cmd = await window.electronAPI.settings.getInitialCommand();
+          } catch (err) {
+            console.error('Failed to get initial command from settings:', err);
+            cmd = 'claude'; // Fallback
+          }
+        }
 
-      if (initialCommand) {
-        setTimeout(() => {
-          window.electronAPI.terminal.write(sessionId, initialCommand + '\r');
-        }, 1000);
+        window.electronAPI.terminal.spawn(sessionId, folderPath, sessionName, cmd);
+        spawnedRef.current = true;
       }
-    }
+    };
+
+    spawnTerminal();
 
     return () => unsubData();
-  }, [term, isOpened, sessionId, folderPath, initialCommand]);
+  }, [term, isOpened, sessionId, folderPath, initialCommand, runInitialCommand]);
 
   // 4. Handle remote paste (Image from mobile)
   useEffect(() => {

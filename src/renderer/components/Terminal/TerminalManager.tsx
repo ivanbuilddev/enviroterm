@@ -198,6 +198,7 @@ export function TerminalManager({
                 folderPath={activeDirectory.path}
                 isVisible={true}
                 isFocused={session.id === focusedSessionId}
+                runInitialCommand={true}
               />
             </TerminalWindow>
           </div>

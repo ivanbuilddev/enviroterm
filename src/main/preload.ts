@@ -20,8 +20,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (id: string) => ipcRenderer.invoke('sessions:delete', id),
   },
   terminal: {
-    spawn: (sessionId: string, folderPath: string, sessionName?: string, autoRunClaude: boolean = true) =>
-      ipcRenderer.invoke('terminal:spawn', sessionId, folderPath, sessionName, autoRunClaude),
+    spawn: (sessionId: string, folderPath: string, sessionName?: string, initialCommand: string = '') =>
+      ipcRenderer.invoke('terminal:spawn', sessionId, folderPath, sessionName, initialCommand),
     write: (sessionId: string, data: string) =>
       ipcRenderer.send('terminal:write', sessionId, data),
     resize: (sessionId: string, cols: number, rows: number) =>
@@ -62,5 +62,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   remote: {
     getDetails: () => ipcRenderer.invoke('remote:getDetails'),
     generateToken: (directoryId: string) => ipcRenderer.invoke('remote:generateToken', directoryId),
+  },
+  settings: {
+    get: (directoryId?: string) => ipcRenderer.invoke('settings:get', directoryId),
+    set: (settings: { initialCommand?: string; keyboardShortcuts?: any[] }, directoryId?: string) =>
+      ipcRenderer.invoke('settings:set', settings, directoryId),
+    getInitialCommand: (directoryId?: string) => ipcRenderer.invoke('settings:getInitialCommand', directoryId),
   }
 });

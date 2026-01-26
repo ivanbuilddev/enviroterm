@@ -128,7 +128,7 @@ export function MobileApp() {
                         socket.send(JSON.stringify({ type: 'input', sessionId, data }));
                     }
                 },
-                spawn: (sessionId: string, _folderPath: string, _sessionName?: string) => {
+                spawn: (sessionId: string, _folderPath: string, _sessionName?: string, _initialCommand: string = '') => {
                     // Mobile should NOT spawn new terminals - just sync with existing ones
                     // Request sync instead of spawning
                     if (socket.readyState === WebSocket.OPEN) {
@@ -348,7 +348,7 @@ export function MobileApp() {
                                 folderPath=""
                                 isVisible={true}
                                 isFocused={true}
-                                autoRunClaude={false}
+                                runInitialCommand={false}
                                 isReadOnlyResize={true}
                             />
                         </div>

@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Terminal, PanelBottom, Globe } from 'lucide-react';
+import { Terminal, PanelBottom, Globe, Settings } from 'lucide-react';
 import { Directory, Session } from '../../../shared/types';
 import { DirectoryIcon } from './DirectoryIcon';
 import { AddDirectoryButton } from './AddDirectoryButton';
@@ -21,6 +21,8 @@ interface SidebarProps {
   isBottomPanelVisible: boolean;
   onToggleBrowserPanel: () => void;
   isBrowserPanelVisible: boolean;
+  onOpenSettings: () => void;
+  onOpenWorkspaceSettings: (directoryId: string, workspaceName: string) => void;
 }
 
 export function Sidebar({
@@ -36,7 +38,9 @@ export function Sidebar({
   onToggleBottomPanel,
   isBottomPanelVisible,
   onToggleBrowserPanel,
-  isBrowserPanelVisible
+  isBrowserPanelVisible,
+  onOpenSettings,
+  onOpenWorkspaceSettings
 }: SidebarProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -132,6 +136,10 @@ export function Sidebar({
                     setRemoteModalData({ id: directory.id, path: directory.path });
                     setHoveredId(null);
                   }}
+                  onOpenSettings={() => {
+                    onOpenWorkspaceSettings(directory.id, directory.name);
+                    setHoveredId(null);
+                  }}
                 />
               </div>,
               document.body
@@ -161,8 +169,8 @@ export function Sidebar({
         <button
           onClick={onToggleBrowserPanel}
           className={`w-10 h-10 flex items-center justify-center border transition-all duration-150 ${isBrowserPanelVisible
-              ? 'bg-accent-primary/20 border-accent-primary text-accent-primary'
-              : 'bg-bg-surface border-border text-fg-muted hover:text-fg-primary hover:border-accent-primary hover:bg-bg-hover'
+            ? 'bg-accent-primary/20 border-accent-primary text-accent-primary'
+            : 'bg-bg-surface border-border text-fg-muted hover:text-fg-primary hover:border-accent-primary hover:bg-bg-hover'
             }`}
           title={isBrowserPanelVisible ? "Close Browser" : "Open Browser"}
         >
@@ -171,12 +179,19 @@ export function Sidebar({
         <button
           onClick={onToggleBottomPanel}
           className={`w-10 h-10 flex items-center justify-center border transition-all duration-150 ${isBottomPanelVisible
-              ? 'bg-accent-primary/20 border-accent-primary text-accent-primary'
-              : 'bg-bg-surface border-border text-fg-muted hover:text-fg-primary hover:border-accent-primary hover:bg-bg-hover'
+            ? 'bg-accent-primary/20 border-accent-primary text-accent-primary'
+            : 'bg-bg-surface border-border text-fg-muted hover:text-fg-primary hover:border-accent-primary hover:bg-bg-hover'
             }`}
           title={isBottomPanelVisible ? "Close Panel" : "Open Panel"}
         >
           <PanelBottom size={18} />
+        </button>
+        <button
+          onClick={onOpenSettings}
+          className="w-10 h-10 flex items-center justify-center bg-bg-surface border border-border text-fg-muted hover:text-fg-primary hover:border-accent-primary hover:bg-bg-hover transition-all duration-150"
+          title="Settings"
+        >
+          <Settings size={18} />
         </button>
       </div>
     </aside>

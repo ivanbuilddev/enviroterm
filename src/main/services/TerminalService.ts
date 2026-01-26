@@ -40,9 +40,9 @@ class TerminalService {
 
   /**
    * Spawn a new PTY process for a session
-   * @param autoRunClaude - If true, automatically runs 'claude' command after shell starts
+   * @param initialCommand - Command to automatically run after shell starts
    */
-  spawn(sessionId: string, folderPath: string, sessionName: string = 'Unknown', autoRunClaude: boolean = true): boolean {
+  spawn(sessionId: string, folderPath: string, sessionName: string = 'Unknown', initialCommand: string = ''): boolean {
     if (this.terminals.has(sessionId)) {
       return true;
     }
@@ -97,9 +97,9 @@ class TerminalService {
         });
       }
 
-      if (autoRunClaude) {
+      if (initialCommand && initialCommand.trim() !== '') {
         setTimeout(() => {
-          ptyProcess.write('claude\r');
+          ptyProcess.write(`${initialCommand}\r`);
         }, 500);
       }
 

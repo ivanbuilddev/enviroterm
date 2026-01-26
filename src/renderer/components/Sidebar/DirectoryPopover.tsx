@@ -1,6 +1,7 @@
 import { Directory, Session } from '../../../shared/types';
 import { useMemo } from 'react';
 import vscodeIcon from '../../assets/icons/vscode.svg';
+import { Settings } from 'lucide-react';
 
 interface DirectoryPopoverProps {
     directory: Directory;
@@ -9,6 +10,7 @@ interface DirectoryPopoverProps {
     onDeleteDirectory: () => void;
     onOpenInVSCode: () => void;
     onSendToPhone: () => void;
+    onOpenSettings: () => void;
 }
 
 export function DirectoryPopover({
@@ -17,7 +19,8 @@ export function DirectoryPopover({
     onSelectSession,
     onDeleteDirectory,
     onOpenInVSCode,
-    onSendToPhone
+    onSendToPhone,
+    onOpenSettings
 }: DirectoryPopoverProps) {
     const createdDate = useMemo(() => {
         return new Date(directory.createdAt).toLocaleDateString(undefined, {
@@ -69,6 +72,13 @@ export function DirectoryPopover({
                 >
                     <img src={vscodeIcon} className="w-3.5 h-3.5" alt="VS Code" />
                     Open in VS Code
+                </button>
+                <button
+                    onClick={onOpenSettings}
+                    className="w-full text-left px-2 py-1.5 hover:bg-bg-hover hover:text-accent-primary text-[10px] text-fg-secondary flex items-center gap-2 transition-colors"
+                >
+                    <Settings className="w-3.5 h-3.5" />
+                    Workspace Settings
                 </button>
                 <button
                     onClick={onSendToPhone}

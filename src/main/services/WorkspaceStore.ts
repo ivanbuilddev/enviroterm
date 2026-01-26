@@ -121,6 +121,10 @@ export const WorkspaceStore = {
     // Also delete associated sessions
     const sessions = store.get('sessions').filter(s => s.directoryId !== id);
     store.set('sessions', sessions);
+    // New: Cleanup workspace-specific settings
+    import('./SettingsStore').then(({ SettingsStore }) => {
+      SettingsStore.deleteForWorkspace(id);
+    });
   },
 
   reorderDirectories(ids: string[]): void {

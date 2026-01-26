@@ -4,6 +4,7 @@ import { registerWorkspaceHandlers } from './ipc/workspaceHandlers';
 import { registerTerminalHandlers } from './ipc/terminalHandlers';
 import { terminalService } from './services/TerminalService';
 import { remoteService } from './services/RemoteService';
+import { SettingsStore } from './services/SettingsStore';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -70,6 +71,20 @@ function createWindow(): void {
       console.error('[Main] Failed to write image to clipboard:', err);
       return false;
     }
+  });
+
+  // Settings handlers
+  ipcMain.handle('settings:get', (_, directoryId?: string) => {
+    return SettingsStore.getAll(directoryId);
+  });
+
+  ipcMain.handle('settings:set', (_, settings: { initialCommand?: string; keyboardShortcuts?: any[] }, directoryId?: string) => {
+    SettingsStore.setAll(settings, directoryId);
+    return SettingsStore.getAll(directoryId);
+  });
+
+  ipcMain.handle('settings:getInitialCommand', (_, directoryId?: string) => {
+    return SettingsStore.getInitialCommand(directoryId);
   });
 }
 
