@@ -3,6 +3,7 @@ import { createServer } from 'http';
 import os from 'os';
 import { terminalService } from './TerminalService';
 import { WorkspaceStore } from './WorkspaceStore';
+import { SettingsStore } from './SettingsStore';
 import { BrowserWindow } from 'electron';
 
 interface RemoteConnection {
@@ -124,6 +125,9 @@ class RemoteService {
                         const dims = terminalService.getDimensions(payload.sessionId);
                         console.log(`[Remote] Syncing session ${payload.sessionId}: ${buffer.length} buffer chunks, dims: ${dims?.cols}x${dims?.rows}`);
                         ws.send(JSON.stringify({ type: 'history', sessionId: payload.sessionId, data: buffer, dims }));
+                    } else if (payload.type === 'getSettings' && payload.directoryId) {
+                        const settings = SettingsStore.getAll(payload.directoryId);
+                        ws.send(JSON.stringify({ type: 'settings', settings }));
                     } else if (payload.type === 'paste' && payload.sessionId) {
                         console.log('[Remote] Paste received for session:', payload.sessionId, 'data keys:', Object.keys(payload.data || {}));
                         const mainWindow = BrowserWindow.getAllWindows()[0];
