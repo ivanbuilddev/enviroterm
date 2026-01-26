@@ -50,7 +50,7 @@ export interface ElectronAPI {
     delete: (id: string) => Promise<void>;
   };
   terminal: {
-    spawn: (sessionId: string, folderPath: string) => Promise<boolean>;
+    spawn: (sessionId: string, folderPath: string, sessionName?: string, autoRunClaude?: boolean) => Promise<boolean>;
     write: (sessionId: string, data: string) => void;
     resize: (sessionId: string, cols: number, rows: number) => void;
     kill: (sessionId: string) => void;
@@ -61,6 +61,9 @@ export interface ElectronAPI {
     minimize: () => void;
     maximize: () => void;
     close: () => void;
+  };
+  shell: {
+    openExternal: (url: string) => Promise<void>;
   };
 }
 

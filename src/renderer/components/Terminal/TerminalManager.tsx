@@ -12,6 +12,13 @@ interface TerminalManagerProps {
   onDeleteSession: (id: string) => Promise<void>;
 }
 
+interface WindowGeometry {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export function TerminalManager({
   sessions,
   activeDirectory,
@@ -23,6 +30,16 @@ export function TerminalManager({
   const [zIndices, setZIndices] = useState<Record<string, number>>({});
   const maxZRef = useRef(10);
 
+  // Canvas panning state
+  const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const panStartRef = useRef({ x: 0, y: 0, offsetX: 0, offsetY: 0 });
+  const canvasRef = useRef<HTMLDivElement>(null);
+
+  // Track window geometries for centering
+  const windowGeometries = useRef<Record<string, WindowGeometry>>({});
+
   const bringToFront = useCallback((id: string) => {
     setZIndices(prev => {
       maxZRef.current += 1;
@@ -30,11 +47,86 @@ export function TerminalManager({
     });
   }, []);
 
+  // Handle geometry updates from windows
+  const handleGeometryChange = useCallback((id: string, geometry: WindowGeometry) => {
+    windowGeometries.current[id] = geometry;
+  }, []);
+
+  // Center canvas on focused session
+  const centerOnWindow = useCallback((sessionId: string) => {
+    const geometry = windowGeometries.current[sessionId];
+    const canvas = canvasRef.current;
+
+    if (!geometry || !canvas) return;
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const canvasCenterX = canvasRect.width / 2;
+    const canvasCenterY = canvasRect.height / 2;
+
+    // Calculate window center
+    const windowCenterX = geometry.x + geometry.width / 2;
+    const windowCenterY = geometry.y + geometry.height / 2;
+
+    // Calculate offset to center the window
+    const newOffsetX = canvasCenterX - windowCenterX;
+    const newOffsetY = canvasCenterY - windowCenterY;
+
+    // Enable animation for smooth transition
+    setIsAnimating(true);
+    setCanvasOffset({ x: newOffsetX, y: newOffsetY });
+
+    // Disable animation after transition completes
+    setTimeout(() => setIsAnimating(false), 300);
+  }, []);
+
   useEffect(() => {
     if (focusedSessionId) {
       bringToFront(focusedSessionId);
+      // Small delay to ensure geometry is updated
+      setTimeout(() => {
+        centerOnWindow(focusedSessionId);
+      }, 50);
     }
-  }, [focusedSessionId, bringToFront]);
+  }, [focusedSessionId, bringToFront, centerOnWindow]);
+
+  // Canvas panning handlers
+  const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only start panning if clicking directly on the canvas background
+    if (e.target === canvasRef.current || (e.target as HTMLElement).classList.contains('canvas-background')) {
+      setIsPanning(true);
+      panStartRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        offsetX: canvasOffset.x,
+        offsetY: canvasOffset.y
+      };
+      e.preventDefault();
+    }
+  }, [canvasOffset]);
+
+  useEffect(() => {
+    if (!isPanning) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const dx = e.clientX - panStartRef.current.x;
+      const dy = e.clientY - panStartRef.current.y;
+      setCanvasOffset({
+        x: panStartRef.current.offsetX + dx,
+        y: panStartRef.current.offsetY + dy
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsPanning(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isPanning]);
 
   const windowOffsets = useMemo(() => {
     const offsets: Record<string, { x: number, y: number }> = {};
@@ -61,40 +153,56 @@ export function TerminalManager({
   }
 
   return (
-    <div className="flex-1 relative overflow-hidden bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-bg-surface/20 via-bg-base to-bg-base">
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
-        style={{ backgroundImage: 'radial-gradient(var(--color-fg-muted) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+    <div
+      ref={canvasRef}
+      className={`flex-1 relative overflow-hidden bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-bg-surface/20 via-bg-base to-bg-base ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+      onMouseDown={handleCanvasMouseDown}
+    >
+      {/* Background pattern that moves with canvas */}
+      <div
+        className="canvas-background absolute opacity-[0.03] pointer-events-none"
+        style={{
+          backgroundImage: 'radial-gradient(var(--color-fg-muted) 1px, transparent 1px)',
+          backgroundSize: '32px 32px',
+          backgroundPosition: `${canvasOffset.x}px ${canvasOffset.y}px`,
+          width: '200%',
+          height: '200%',
+          left: '-50%',
+          top: '-50%'
+        }}
+      />
 
-      {/* Action Bar for Sessions */}
-      <div className="absolute bottom-6 right-6 z-[5000]">
-        <button
-          onClick={() => onCreateSession(`Terminal ${sessions.length + 1}`)}
-          className="bg-accent-primary hover:bg-accent-secondary text-white px-4 py-2 shadow-xl flex items-center gap-2 font-semibold text-sm"
-        >
-          <span className="text-lg">+</span> New Terminal
-        </button>
+      {/* Canvas content that pans */}
+      <div
+        className={`absolute inset-0 pointer-events-none ${isAnimating ? 'transition-transform duration-300 ease-out' : ''}`}
+        style={{
+          transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px)`
+        }}
+      >
+        {sessions.map(session => (
+          <div key={session.id} className="pointer-events-auto">
+            <TerminalWindow
+              id={session.id}
+              title={session.name}
+              onFocus={bringToFront}
+              onRename={onRenameSession}
+              onClose={() => onDeleteSession(session.id)}
+              onGeometryChange={handleGeometryChange}
+              zIndex={zIndices[session.id] || 10}
+              initialX={windowOffsets[session.id]?.x}
+              initialY={windowOffsets[session.id]?.y}
+            >
+              <TerminalView
+                sessionId={session.id}
+                sessionName={session.name}
+                folderPath={activeDirectory.path}
+                isVisible={true}
+                isFocused={session.id === focusedSessionId}
+              />
+            </TerminalWindow>
+          </div>
+        ))}
       </div>
-
-      {sessions.map(session => (
-        <TerminalWindow
-          key={session.id}
-          id={session.id}
-          title={session.name}
-          onFocus={bringToFront}
-          onRename={onRenameSession}
-          onClose={() => onDeleteSession(session.id)}
-          zIndex={zIndices[session.id] || 10}
-          initialX={windowOffsets[session.id]?.x}
-          initialY={windowOffsets[session.id]?.y}
-        >
-          <TerminalView
-            sessionId={session.id}
-            folderPath={activeDirectory.path}
-            isVisible={true}
-            isFocused={session.id === focusedSessionId}
-          />
-        </TerminalWindow>
-      ))}
     </div>
   );
 }

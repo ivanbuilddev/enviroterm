@@ -18,7 +18,8 @@ export default defineConfig({
       outDir: 'dist/preload',
       rollupOptions: {
         input: {
-          index: path.resolve(__dirname, 'src/main/preload.ts')
+          index: path.resolve(__dirname, 'src/main/preload.ts'),
+          webview: path.resolve(__dirname, 'src/main/webview-preload.ts')
         }
       }
     }

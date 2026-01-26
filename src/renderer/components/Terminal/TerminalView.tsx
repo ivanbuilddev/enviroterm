@@ -4,9 +4,12 @@ import 'xterm/css/xterm.css';
 
 interface TerminalViewProps {
   sessionId: string;
+  sessionName: string;
   folderPath: string;
   isVisible: boolean;
   isFocused?: boolean;
+  autoRunClaude?: boolean;
+  initialCommand?: string;
 }
 
 /**
@@ -16,25 +19,29 @@ function manualFit(terminal: Terminal | null, container: HTMLDivElement | null):
   if (!terminal || !container || !terminal.element) return null;
 
   const termAny = terminal as any;
-  const renderer = termAny.renderer || (termAny._core && termAny._core.renderer);
-  if (!renderer || !renderer.dimensions) return null;
+  const core = termAny._core;
+  if (!core) return null;
 
-  const dims = renderer.dimensions;
-  if (!dims.device || dims.device.cell.width === 0 || dims.device.cell.height === 0) return null;
+  // Get the actual rendered cell dimensions from the core renderer
+  const cellWidth = core._renderService?.dimensions?.css?.cell?.width;
+  const cellHeight = core._renderService?.dimensions?.css?.cell?.height;
+
+  if (!cellWidth || !cellHeight || cellWidth === 0 || cellHeight === 0) return null;
 
   const { clientWidth, clientHeight } = container;
   if (clientWidth === 0 || clientHeight === 0) return null;
 
-  // Use the internal character measurements to calculate cols/rows
-  const cols = Math.floor(clientWidth / (dims.device.cell.width / window.devicePixelRatio));
-  const rows = Math.floor(clientHeight / (dims.device.cell.height / window.devicePixelRatio));
+  // Account for xterm's internal padding/scrollbar (typically ~14px for scrollbar)
+  const scrollbarWidth = core.viewport?.scrollBarWidth ?? 14;
+  const availableWidth = clientWidth - scrollbarWidth;
 
-  if (cols <= 0 || rows <= 0) return null;
+  const cols = Math.max(1, Math.floor(availableWidth / cellWidth));
+  const rows = Math.max(1, Math.floor(clientHeight / cellHeight));
 
   return { cols, rows };
 }
 
-export function TerminalView({ sessionId, folderPath, isVisible, isFocused }: TerminalViewProps) {
+export function TerminalView({ sessionId, sessionName, folderPath, isFocused, autoRunClaude = true, initialCommand }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const [term, setTerm] = useState<Terminal | null>(null);
@@ -111,12 +118,19 @@ export function TerminalView({ sessionId, folderPath, isVisible, isFocused }: Te
     });
 
     if (!spawnedRef.current) {
-      window.electronAPI.terminal.spawn(sessionId, folderPath);
+      window.electronAPI.terminal.spawn(sessionId, folderPath, sessionName, autoRunClaude);
       spawnedRef.current = true;
+
+      // Handle initial command execution
+      if (initialCommand) {
+        setTimeout(() => {
+          window.electronAPI.terminal.write(sessionId, initialCommand + '\r');
+        }, 1000); // Wait for shell to be ready
+      }
     }
 
     return () => unsubData();
-  }, [term, isOpened, sessionId, folderPath]);
+  }, [term, isOpened, sessionId, folderPath, initialCommand]);
 
   // 4. Handle programmatic focus
   useEffect(() => {
@@ -143,8 +157,8 @@ export function TerminalView({ sessionId, folderPath, isVisible, isFocused }: Te
   }, [term, isOpened, sessionId]);
 
   return (
-    <div className="w-full h-full bg-[#0d1117] p-4">
-      <div className="w-full h-full overflow-hidden" ref={containerRef} />
+    <div className="w-full h-full bg-[#0d1117] p-4 overflow-hidden">
+      <div className="w-full h-full overflow-hidden" ref={containerRef} style={{ overflowX: 'hidden' }} />
     </div>
   );
 }

@@ -17,8 +17,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (id: string) => ipcRenderer.invoke('sessions:delete', id),
   },
   terminal: {
-    spawn: (sessionId: string, folderPath: string) =>
-      ipcRenderer.invoke('terminal:spawn', sessionId, folderPath),
+    spawn: (sessionId: string, folderPath: string, sessionName?: string, autoRunClaude: boolean = true) =>
+      ipcRenderer.invoke('terminal:spawn', sessionId, folderPath, sessionName, autoRunClaude),
     write: (sessionId: string, data: string) =>
       ipcRenderer.send('terminal:write', sessionId, data),
     resize: (sessionId: string, cols: number, rows: number) =>
@@ -45,4 +45,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     maximize: () => ipcRenderer.send('window:maximize'),
     close: () => ipcRenderer.send('window:close'),
   },
+  shell: {
+    openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
+  },
+  getWebviewPreloadPath: () => ipcRenderer.invoke('get-webview-preload-path'),
 });

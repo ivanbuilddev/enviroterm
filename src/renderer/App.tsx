@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { TerminalManager } from './components/Terminal/TerminalManager';
+import { BottomPanel, BottomPanelHandle } from './components/BottomPanel/BottomPanel';
+import { BrowserPanel } from './components/BrowserPanel/BrowserPanel';
 import { useWorkspace } from './hooks/useWorkspace';
 
 function App() {
@@ -22,12 +24,24 @@ function App() {
 
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
+  const [isBottomPanelVisible, setIsBottomPanelVisible] = useState(false);
+  const [isBrowserPanelVisible, setIsBrowserPanelVisible] = useState(false);
+
+  const bottomPanelRef = useRef<BottomPanelHandle>(null);
 
   const handleSelectSession = (directoryId: string, sessionId: string) => {
     selectDirectory(directoryId);
     setFocusedSessionId(sessionId);
     // Reset focus after a bit so it can be re-triggered
     setTimeout(() => setFocusedSessionId(null), 500);
+  };
+
+  const handleRunCommand = (command: string) => {
+    setIsBottomPanelVisible(true);
+    // Give it a tick to ensure it's visible if it wasn't
+    setTimeout(() => {
+      bottomPanelRef.current?.createNewTab('External Cmd', command);
+    }, 50);
   };
 
   return (
@@ -88,7 +102,7 @@ function App() {
         <div
           className={`sidebar-transition overflow-hidden border-r border-border bg-bg-surface relative z-[100] ${isSidebarVisible ? 'w-16 opacity-100' : 'w-0 opacity-0 border-none'}`}
         >
-          <div className="w-16">
+          <div className="w-16 h-full">
             <Sidebar
               directories={directories}
               activeDirectoryId={activeDirectoryId}
@@ -98,25 +112,49 @@ function App() {
               onDeleteDirectory={deleteDirectory}
               onOpenInVSCode={openInVSCode}
               onSelectSession={handleSelectSession}
+              onCreateSession={() => createSession(`Terminal ${sessions.length + 1}`)}
+              onToggleBottomPanel={() => setIsBottomPanelVisible(!isBottomPanelVisible)}
+              isBottomPanelVisible={isBottomPanelVisible}
+              onToggleBrowserPanel={() => setIsBrowserPanelVisible(!isBrowserPanelVisible)}
+              isBrowserPanelVisible={isBrowserPanelVisible}
             />
           </div>
         </div>
 
         <main className="flex-1 flex overflow-hidden">
-          {isLoading ? (
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-fg-muted animate-pulse">Initializing workspace...</p>
+          {/* Center content area (canvas + bottom panel) */}
+          <div className="flex-1 flex flex-col overflow-hidden relative">
+            {/* Canvas area */}
+            <div className="flex-1 flex overflow-hidden">
+              {isLoading ? (
+                <div className="flex-1 flex items-center justify-center h-full">
+                  <p className="text-fg-muted animate-pulse">Initializing workspace...</p>
+                </div>
+              ) : (
+                <TerminalManager
+                  sessions={sessions}
+                  activeDirectory={activeDirectory}
+                  focusedSessionId={focusedSessionId}
+                  onRenameSession={renameSession}
+                  onCreateSession={createSession}
+                  onDeleteSession={deleteSession}
+                />
+              )}
             </div>
-          ) : (
-            <TerminalManager
-              sessions={sessions}
-              activeDirectory={activeDirectory}
-              focusedSessionId={focusedSessionId}
-              onRenameSession={renameSession}
-              onCreateSession={createSession}
-              onDeleteSession={deleteSession}
+            {/* Bottom panel - between sidebar and browser panel */}
+            <BottomPanel
+              isVisible={isBottomPanelVisible}
+              onClose={() => setIsBottomPanelVisible(false)}
+              currentDirectory={activeDirectory?.path ?? null}
+              ref={bottomPanelRef}
             />
-          )}
+          </div>
+          {/* Browser panel on the right */}
+          <BrowserPanel
+            isVisible={isBrowserPanelVisible}
+            onClose={() => setIsBrowserPanelVisible(false)}
+            onRunCommand={handleRunCommand}
+          />
         </main>
       </div>
 

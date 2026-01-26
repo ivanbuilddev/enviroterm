@@ -196,7 +196,26 @@ body {
   /* Slightly wider for terminal for better accessibility */
 }
 
+/* Prevent horizontal scrolling in xterm - content should wrap, not scroll horizontally */
+.xterm-viewport {
+  overflow-x: hidden !important;
+}
+
+.xterm-screen {
+  overflow-x: hidden !important;
+}
+
 /* Sidebar Transition */
 .sidebar-transition {
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+}
+
+/* Bottom Panel Styles */
+.bottom-panel-transition {
+  transition: height 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Prevent selection during resize */
+.resize-active * {
+  user-select: none !important;
 }

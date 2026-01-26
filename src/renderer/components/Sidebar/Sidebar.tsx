@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { Terminal, PanelBottom, Globe } from 'lucide-react';
 import { Directory, Session } from '../../../shared/types';
 import { DirectoryIcon } from './DirectoryIcon';
 import { AddDirectoryButton } from './AddDirectoryButton';
@@ -14,6 +15,11 @@ interface SidebarProps {
   onDeleteDirectory: (id: string) => void;
   onOpenInVSCode: (path: string) => void;
   onSelectSession: (directoryId: string, sessionId: string) => void;
+  onCreateSession: () => void;
+  onToggleBottomPanel: () => void;
+  isBottomPanelVisible: boolean;
+  onToggleBrowserPanel: () => void;
+  isBrowserPanelVisible: boolean;
 }
 
 export function Sidebar({
@@ -24,7 +30,12 @@ export function Sidebar({
   onReorderDirectories,
   onDeleteDirectory,
   onOpenInVSCode,
-  onSelectSession
+  onSelectSession,
+  onCreateSession,
+  onToggleBottomPanel,
+  isBottomPanelVisible,
+  onToggleBrowserPanel,
+  isBrowserPanelVisible
 }: SidebarProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -82,8 +93,9 @@ export function Sidebar({
   };
 
   return (
-    <aside className="w-16 bg-bg-elevated border-r border-border flex flex-col items-center py-3 gap-2 h-full z-[200]">
-      <div className="flex flex-col items-center gap-2 flex-1 w-full">
+    <aside className="w-16 bg-bg-elevated border-r border-border flex flex-col items-center h-full z-[200] relative">
+      {/* Directories section - scrollable if needed */}
+      <div className="flex flex-col items-center gap-2 w-full overflow-y-auto pt-3 pb-28">
         {directories.map(directory => (
           <div
             key={directory.id}
@@ -120,8 +132,41 @@ export function Sidebar({
             )}
           </div>
         ))}
+        <AddDirectoryButton onClick={onAddDirectory} />
       </div>
-      <AddDirectoryButton onClick={onAddDirectory} />
+
+      {/* Action buttons fixed at bottom */}
+      <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center gap-2 py-3 border-t border-border bg-bg-elevated">
+        <button
+          onClick={onCreateSession}
+          className="w-10 h-10 flex items-center justify-center bg-bg-surface border border-border text-fg-muted hover:text-fg-primary hover:border-accent-primary hover:bg-bg-hover transition-all duration-150"
+          title="New Terminal"
+        >
+          <Terminal size={18} />
+        </button>
+        <button
+          onClick={onToggleBrowserPanel}
+          className={`w-10 h-10 flex items-center justify-center border transition-all duration-150 ${
+            isBrowserPanelVisible
+              ? 'bg-accent-primary/20 border-accent-primary text-accent-primary'
+              : 'bg-bg-surface border-border text-fg-muted hover:text-fg-primary hover:border-accent-primary hover:bg-bg-hover'
+          }`}
+          title={isBrowserPanelVisible ? "Close Browser" : "Open Browser"}
+        >
+          <Globe size={18} />
+        </button>
+        <button
+          onClick={onToggleBottomPanel}
+          className={`w-10 h-10 flex items-center justify-center border transition-all duration-150 ${
+            isBottomPanelVisible
+              ? 'bg-accent-primary/20 border-accent-primary text-accent-primary'
+              : 'bg-bg-surface border-border text-fg-muted hover:text-fg-primary hover:border-accent-primary hover:bg-bg-hover'
+          }`}
+          title={isBottomPanelVisible ? "Close Panel" : "Open Panel"}
+        >
+          <PanelBottom size={18} />
+        </button>
+      </div>
     </aside>
   );
 }

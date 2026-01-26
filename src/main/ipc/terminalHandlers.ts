@@ -5,8 +5,8 @@ export function registerTerminalHandlers(mainWindow: BrowserWindow): void {
   terminalService.setMainWindow(mainWindow);
 
   // Spawn a new terminal for a session
-  ipcMain.handle('terminal:spawn', (_, sessionId: string, folderPath: string) => {
-    return terminalService.spawn(sessionId, folderPath);
+  ipcMain.handle('terminal:spawn', (_, sessionId: string, folderPath: string, sessionName?: string, autoRunClaude: boolean = true) => {
+    return terminalService.spawn(sessionId, folderPath, sessionName, autoRunClaude);
   });
 
   // Write data to a terminal

@@ -1,5 +1,12 @@
 import { useState, useRef, useEffect, ReactNode } from 'react';
 
+interface WindowGeometry {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
 interface TerminalWindowProps {
     title: string;
     id: string;
@@ -12,6 +19,7 @@ interface TerminalWindowProps {
     onFocus: (id: string) => void;
     onClose?: (id: string) => void;
     onRename?: (id: string, name: string) => void;
+    onGeometryChange?: (id: string, geometry: WindowGeometry) => void;
 }
 
 export function TerminalWindow({
@@ -25,7 +33,8 @@ export function TerminalWindow({
     zIndex,
     onFocus,
     onClose,
-    onRename
+    onRename,
+    onGeometryChange
 }: TerminalWindowProps) {
     const [position, setPosition] = useState({ x: initialX, y: initialY });
     const [size, setSize] = useState({ width: initialWidth, height: initialHeight });
@@ -72,6 +81,16 @@ export function TerminalWindow({
         e.stopPropagation();
         setIsMinimized(!isMinimized);
     };
+
+    // Report geometry changes to parent
+    useEffect(() => {
+        onGeometryChange?.(id, {
+            x: position.x,
+            y: position.y,
+            width: size.width,
+            height: size.height
+        });
+    }, [position.x, position.y, size.width, size.height, id, onGeometryChange]);
 
     useEffect(() => {
         if (!isDragging || isMaximized) return;

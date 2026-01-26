@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import path from 'path';
 import { registerWorkspaceHandlers } from './ipc/workspaceHandlers';
 import { registerTerminalHandlers } from './ipc/terminalHandlers';
@@ -16,6 +16,7 @@ function createWindow(): void {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      webviewTag: true,
     },
   });
 
@@ -44,6 +45,16 @@ function createWindow(): void {
 
   ipcMain.on('window:close', () => {
     mainWindow?.close();
+  });
+
+  // Shell - open external URLs in system browser
+  ipcMain.handle('shell:openExternal', (_, url: string) => {
+    return shell.openExternal(url);
+  });
+
+  // Get webview preload path
+  ipcMain.handle('get-webview-preload-path', () => {
+    return path.join(__dirname, '../preload/webview.js');
   });
 }
 
