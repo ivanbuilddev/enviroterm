@@ -24,7 +24,6 @@ export function TerminalManager({
   activeDirectory,
   focusedSessionId,
   onRenameSession,
-  onCreateSession,
   onDeleteSession
 }: TerminalManagerProps) {
   const [zIndices, setZIndices] = useState<Record<string, number>>({});
@@ -199,6 +198,7 @@ export function TerminalManager({
                 isVisible={true}
                 isFocused={session.id === focusedSessionId}
                 runInitialCommand={true}
+                directoryId={activeDirectory.id}
               />
             </TerminalWindow>
           </div>

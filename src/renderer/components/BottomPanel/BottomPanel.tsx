@@ -12,6 +12,7 @@ interface BottomPanelProps {
   isVisible: boolean;
   onClose: () => void;
   currentDirectory: string | null;
+  currentDirectoryId?: string;
 }
 
 export interface BottomPanelHandle {
@@ -23,7 +24,7 @@ const MAX_HEIGHT_RATIO = 0.8; // 80% of available space
 const DEFAULT_HEIGHT = 300;
 
 export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
-  ({ isVisible, onClose, currentDirectory }, ref) => {
+  ({ isVisible, onClose, currentDirectory, currentDirectoryId }, ref) => {
     const [tabs, setTabs] = useState<BottomPanelTab[]>([]);
     const [activeTabId, setActiveTabId] = useState<string | null>(null);
     const [height, setHeight] = useState(DEFAULT_HEIGHT);
@@ -193,6 +194,7 @@ export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
                   isFocused={activeTabId === tab.id}
                   runInitialCommand={false}
                   initialCommand={tab.initialCommand}
+                  directoryId={currentDirectoryId}
                 />
               )}
             </div>

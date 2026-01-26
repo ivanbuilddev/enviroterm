@@ -11,6 +11,7 @@ interface TerminalViewProps {
   runInitialCommand?: boolean;
   initialCommand?: string;
   isReadOnlyResize?: boolean;
+  directoryId?: string;
 }
 
 /**
@@ -42,7 +43,7 @@ function manualFit(terminal: Terminal | null, container: HTMLDivElement | null):
   return { cols, rows };
 }
 
-export function TerminalView({ sessionId, sessionName, folderPath, isFocused, runInitialCommand = false, initialCommand, isReadOnlyResize = false }: TerminalViewProps) {
+export function TerminalView({ sessionId, sessionName, folderPath, isFocused, runInitialCommand = false, initialCommand, isReadOnlyResize = false, directoryId }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const [term, setTerm] = useState<Terminal | null>(null);
@@ -188,7 +189,7 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
         let cmd = initialCommand || '';
         if (runInitialCommand && !initialCommand) {
           try {
-            cmd = await window.electronAPI.settings.getInitialCommand();
+            cmd = await (window.electronAPI as any).settings.getInitialCommand(directoryId);
           } catch (err) {
             console.error('Failed to get initial command from settings:', err);
             cmd = 'claude'; // Fallback

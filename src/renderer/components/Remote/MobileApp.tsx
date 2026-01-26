@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Menu, ChevronLeft, Image as ImageIcon, Keyboard, Move, ChevronDown, Octagon, RefreshCcw } from 'lucide-react';
+import { Menu, ChevronLeft, Image as ImageIcon, Keyboard, Move, ChevronDown } from 'lucide-react';
 import { TerminalView } from '../Terminal/TerminalView';
 import { Session } from '../../../shared/types';
 

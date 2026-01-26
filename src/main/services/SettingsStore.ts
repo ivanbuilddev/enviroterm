@@ -34,9 +34,20 @@ export const SettingsStore = {
     if (!directoryId) return global;
 
     const overrides = global.workspaceOverrides[directoryId] || {};
+
+    // Initial command: follow workspace override if defined, else global
+    const initialCommand = overrides.initialCommand !== undefined
+      ? overrides.initialCommand
+      : global.initialCommand;
+
+    // Shortcuts: follow workspace override if its list is NOT empty, else global
+    const keyboardShortcuts = (overrides.keyboardShortcuts && overrides.keyboardShortcuts.length > 0)
+      ? overrides.keyboardShortcuts
+      : global.keyboardShortcuts;
+
     return {
-      initialCommand: overrides.initialCommand ?? global.initialCommand,
-      keyboardShortcuts: overrides.keyboardShortcuts ?? global.keyboardShortcuts,
+      initialCommand,
+      keyboardShortcuts,
       workspaceOverrides: global.workspaceOverrides
     };
   },
@@ -81,24 +92,18 @@ export const SettingsStore = {
     return store.get('initialCommand');
   },
 
-  setInitialCommand(command: string, directoryId?: string): void {
-    if (!directoryId) {
-      store.set('initialCommand', command);
-    } else {
-      const overrides = store.get('workspaceOverrides') || {};
-      overrides[directoryId] = { ...(overrides[directoryId] || {}), initialCommand: command };
-      store.set('workspaceOverrides', overrides);
-    }
-  },
-
   getKeyboardShortcuts(directoryId?: string): KeyboardShortcut[] {
+    const globalShortcuts = store.get('keyboardShortcuts') || [];
     if (directoryId) {
       const overrides = store.get('workspaceOverrides') || {};
-      if (overrides[directoryId]?.keyboardShortcuts !== undefined) {
-        return overrides[directoryId].keyboardShortcuts!;
+      const workspaceShortcuts = overrides[directoryId]?.keyboardShortcuts;
+      // If workspace has shortcuts AND they are not empty, return them
+      if (workspaceShortcuts && workspaceShortcuts.length > 0) {
+        return workspaceShortcuts;
       }
     }
-    return store.get('keyboardShortcuts');
+    // Fallback to global
+    return globalShortcuts;
   },
 
   addKeyboardShortcut(shortcut: Omit<KeyboardShortcut, 'id'>, directoryId?: string): KeyboardShortcut {

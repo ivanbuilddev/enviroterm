@@ -160,6 +160,7 @@ function App() {
               isVisible={isBottomPanelVisible}
               onClose={() => setIsBottomPanelVisible(false)}
               currentDirectory={activeDirectory?.path ?? null}
+              currentDirectoryId={activeDirectoryId ?? undefined}
               ref={bottomPanelRef}
             />
           </div>
