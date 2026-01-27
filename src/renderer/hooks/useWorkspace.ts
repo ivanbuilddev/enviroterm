@@ -1,19 +1,19 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Directory, Session } from '../../shared/types';
+import { Workspace, Session } from '../../shared/types';
 
 interface UseWorkspaceReturn {
-  directories: Directory[];
-  activeDirectoryId: string | null;
-  activeDirectory: Directory | null;
+  workspaces: Workspace[];
+  activeWorkspaceId: string | null;
+  activeWorkspace: Workspace | null;
   sessions: Session[];
   isLoading: boolean;
   error: string | null;
-  // Directory methods
-  createDirectory: () => Promise<void>;
-  selectDirectory: (id: string) => void;
-  renameDirectory: (id: string, name: string) => Promise<void>;
-  deleteDirectory: (id: string) => Promise<void>;
-  reorderDirectories: (ids: string[]) => Promise<void>;
+  // Workspace methods
+  createWorkspace: () => Promise<void>;
+  selectWorkspace: (id: string) => void;
+  renameWorkspace: (id: string, name: string) => Promise<void>;
+  deleteWorkspace: (id: string) => Promise<void>;
+  reorderWorkspaces: (ids: string[]) => Promise<void>;
   openInVSCode: (path: string) => Promise<void>;
   // Session methods
   createSession: (name?: string) => Promise<void>;
@@ -22,24 +22,24 @@ interface UseWorkspaceReturn {
 }
 
 export function useWorkspace(): UseWorkspaceReturn {
-  const [directories, setDirectories] = useState<Directory[]>([]);
-  const [activeDirectoryId, setActiveDirectoryId] = useState<string | null>(null);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const activeDirectory = useMemo(() =>
-    directories.find(d => d.id === activeDirectoryId) || null
-    , [directories, activeDirectoryId]);
+  const activeWorkspace = useMemo(() =>
+    workspaces.find(w => w.id === activeWorkspaceId) || null
+    , [workspaces, activeWorkspaceId]);
 
   // Initial load
   useEffect(() => {
     async function init() {
       try {
-        const loadedDirs = await window.electronAPI.directories.getAll();
-        setDirectories(loadedDirs);
-        if (loadedDirs.length > 0) {
-          setActiveDirectoryId(loadedDirs[0].id);
+        const loadedWorkspaces = await window.electronAPI.workspaces.getAll();
+        setWorkspaces(loadedWorkspaces);
+        if (loadedWorkspaces.length > 0) {
+          setActiveWorkspaceId(loadedWorkspaces[0].id);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load workspace');
@@ -50,28 +50,28 @@ export function useWorkspace(): UseWorkspaceReturn {
     init();
   }, []);
 
-  // Sync sessions when active directory changes
+  // Sync sessions when active workspace changes
   useEffect(() => {
-    if (!activeDirectoryId) {
+    if (!activeWorkspaceId) {
       setSessions([]);
       return;
     }
     async function loadSessions() {
       try {
-        const loadedSessions = await window.electronAPI.sessions.getByDirectory(activeDirectoryId!);
+        const loadedSessions = await window.electronAPI.sessions.getByWorkspace(activeWorkspaceId!);
         setSessions(loadedSessions);
       } catch (err) {
         console.error('Failed to load sessions:', err);
       }
     }
     loadSessions();
-  }, [activeDirectoryId]);
+  }, [activeWorkspaceId]);
 
   // Listen for sessions created remotely (from phone)
   useEffect(() => {
     const unsubscribe = window.electronAPI.sessions.onCreated((session) => {
-      // Only add if it belongs to the active directory
-      if (session.directoryId === activeDirectoryId) {
+      // Only add if it belongs to the active workspace
+      if (session.workspaceId === activeWorkspaceId) {
         setSessions(prev => {
           // Avoid duplicates
           if (prev.some(s => s.id === session.id)) return prev;
@@ -80,65 +80,65 @@ export function useWorkspace(): UseWorkspaceReturn {
       }
     });
     return unsubscribe;
-  }, [activeDirectoryId]);
+  }, [activeWorkspaceId]);
 
-  // --- DIRECTORY METHODS ---
+  // --- WORKSPACE METHODS ---
 
-  const createDirectory = useCallback(async () => {
-    const result = await window.electronAPI.directories.create();
-    if (result.success && result.directory) {
-      setDirectories(prev => [...prev, result.directory!]);
-      setActiveDirectoryId(result.directory.id);
+  const createWorkspace = useCallback(async () => {
+    const result = await window.electronAPI.workspaces.create();
+    if (result.success && result.workspace) {
+      setWorkspaces(prev => [...prev, result.workspace!]);
+      setActiveWorkspaceId(result.workspace.id);
     } else if (result.error) {
       setError(result.error);
     }
   }, []);
 
-  const selectDirectory = useCallback((id: string) => {
-    setActiveDirectoryId(id);
-    window.electronAPI.directories.updateLastAccessed(id);
-    setDirectories(prev =>
-      prev.map(d => d.id === id ? { ...d, lastAccessedAt: Date.now() } : d)
+  const selectWorkspace = useCallback((id: string) => {
+    setActiveWorkspaceId(id);
+    window.electronAPI.workspaces.updateLastAccessed(id);
+    setWorkspaces(prev =>
+      prev.map(w => w.id === id ? { ...w, lastAccessedAt: Date.now() } : w)
     );
   }, []);
 
-  const reorderDirectories = useCallback(async (ids: string[]) => {
+  const reorderWorkspaces = useCallback(async (ids: string[]) => {
     // Optimistic update
-    setDirectories(prev => {
-      const reordered = ids.map(id => prev.find(d => d.id === id)).filter(Boolean) as Directory[];
-      const missing = prev.filter(d => !ids.includes(d.id));
+    setWorkspaces(prev => {
+      const reordered = ids.map(id => prev.find(w => w.id === id)).filter(Boolean) as Workspace[];
+      const missing = prev.filter(w => !ids.includes(w.id));
       return [...reordered, ...missing];
     });
-    await window.electronAPI.directories.reorder(ids);
+    await window.electronAPI.workspaces.reorder(ids);
   }, []);
 
-  const renameDirectory = useCallback(async (id: string, name: string) => {
-    await window.electronAPI.directories.rename(id, name);
-    setDirectories(prev => prev.map(d => d.id === id ? { ...d, name } : d));
+  const renameWorkspace = useCallback(async (id: string, name: string) => {
+    await window.electronAPI.workspaces.rename(id, name);
+    setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, name } : w));
   }, []);
 
-  const deleteDirectory = useCallback(async (id: string) => {
-    await window.electronAPI.directories.delete(id);
-    setDirectories(prev => {
-      const filtered = prev.filter(d => d.id !== id);
-      if (activeDirectoryId === id) {
-        setActiveDirectoryId(filtered.length > 0 ? filtered[0].id : null);
+  const deleteWorkspace = useCallback(async (id: string) => {
+    await window.electronAPI.workspaces.delete(id);
+    setWorkspaces(prev => {
+      const filtered = prev.filter(w => w.id !== id);
+      if (activeWorkspaceId === id) {
+        setActiveWorkspaceId(filtered.length > 0 ? filtered[0].id : null);
       }
       return filtered;
     });
-  }, [activeDirectoryId]);
+  }, [activeWorkspaceId]);
 
   const openInVSCode = useCallback(async (path: string) => {
-    await window.electronAPI.directories.openInVSCode(path);
+    await window.electronAPI.workspaces.openInVSCode(path);
   }, []);
 
   // --- SESSION METHODS ---
 
   const createSession = useCallback(async (name?: string) => {
-    if (!activeDirectoryId) return;
-    const session = await window.electronAPI.sessions.create(activeDirectoryId, name);
+    if (!activeWorkspaceId) return;
+    const session = await window.electronAPI.sessions.create(activeWorkspaceId, name);
     setSessions(prev => [...prev, session]);
-  }, [activeDirectoryId]);
+  }, [activeWorkspaceId]);
 
   const renameSession = useCallback(async (id: string, name: string) => {
     await window.electronAPI.sessions.rename(id, name);
@@ -151,17 +151,17 @@ export function useWorkspace(): UseWorkspaceReturn {
   }, []);
 
   return {
-    directories,
-    activeDirectoryId,
-    activeDirectory,
+    workspaces,
+    activeWorkspaceId,
+    activeWorkspace,
     sessions,
     isLoading,
     error,
-    createDirectory,
-    selectDirectory,
-    renameDirectory,
-    deleteDirectory,
-    reorderDirectories,
+    createWorkspace,
+    selectWorkspace,
+    renameWorkspace,
+    deleteWorkspace,
+    reorderWorkspaces,
     openInVSCode,
     createSession,
     renameSession,

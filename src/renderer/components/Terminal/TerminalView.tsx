@@ -11,7 +11,7 @@ interface TerminalViewProps {
   runInitialCommand?: boolean;
   initialCommand?: string;
   isReadOnlyResize?: boolean;
-  directoryId?: string;
+  workspaceId?: string;
 }
 
 /**
@@ -43,7 +43,7 @@ function manualFit(terminal: Terminal | null, container: HTMLDivElement | null):
   return { cols, rows };
 }
 
-export function TerminalView({ sessionId, sessionName, folderPath, isFocused, runInitialCommand = false, initialCommand, isReadOnlyResize = false, directoryId }: TerminalViewProps) {
+export function TerminalView({ sessionId, sessionName, folderPath, isFocused, runInitialCommand = false, initialCommand, isReadOnlyResize = false, workspaceId }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const [term, setTerm] = useState<Terminal | null>(null);
@@ -174,7 +174,7 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
   useEffect(() => {
     if (!term || !isOpened) return;
 
-    const unsubData = window.electronAPI.terminal.onData((data) => {
+    const unsubData = window.electronAPI.terminal.onData((data: any) => {
       if (data.sessionId === sessionId) {
         term.write(data.data);
       }
@@ -189,7 +189,7 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
         let cmd = initialCommand || '';
         if (runInitialCommand && !initialCommand) {
           try {
-            cmd = await window.electronAPI.settings.getInitialCommand(directoryId);
+            cmd = await window.electronAPI.settings.getInitialCommand(workspaceId);
           } catch (err) {
             console.error('Failed to get initial command from settings:', err);
             cmd = 'claude'; // Fallback
@@ -204,9 +204,9 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
     spawnTerminal();
 
     return () => unsubData();
-  }, [term, isOpened, sessionId, folderPath, initialCommand, runInitialCommand]);
+  }, [term, isOpened, sessionId, folderPath, initialCommand, runInitialCommand, workspaceId]);
 
-  // 4. Handle remote paste (Image from mobile)
+  // ... (rest of the component)
   useEffect(() => {
     if (!term || !isOpened) return;
 

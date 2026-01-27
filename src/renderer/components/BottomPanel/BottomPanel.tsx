@@ -11,8 +11,8 @@ export interface BottomPanelTab {
 interface BottomPanelProps {
   isVisible: boolean;
   onClose: () => void;
-  currentDirectory: string | null;
-  currentDirectoryId?: string;
+  currentWorkspace: string | null;
+  currentWorkspaceId?: string;
 }
 
 export interface BottomPanelHandle {
@@ -24,7 +24,7 @@ const MAX_HEIGHT_RATIO = 0.8; // 80% of available space
 const DEFAULT_HEIGHT = 300;
 
 export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
-  ({ isVisible, onClose, currentDirectory, currentDirectoryId }, ref) => {
+  ({ isVisible, onClose, currentWorkspace, currentWorkspaceId }, ref) => {
     const [tabs, setTabs] = useState<BottomPanelTab[]>([]);
     const [activeTabId, setActiveTabId] = useState<string | null>(null);
     const [height, setHeight] = useState(DEFAULT_HEIGHT);
@@ -39,7 +39,7 @@ export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
     });
 
     const createNewTab = useCallback((name?: string, initialCommand?: string) => {
-      if (!currentDirectory) return;
+      if (!currentWorkspace) return;
 
       const newTab: BottomPanelTab = {
         id: `panel-tab-${Date.now()}`,
@@ -48,7 +48,7 @@ export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
       };
       setTabs(prev => [...prev, newTab]);
       setActiveTabId(newTab.id);
-    }, [tabs.length, currentDirectory]);
+    }, [tabs.length, currentWorkspace]);
 
     // Expose methods to parent
     useImperativeHandle(ref, () => ({
@@ -57,10 +57,10 @@ export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
 
     // Create initial tab when panel opens and no tabs exist
     useEffect(() => {
-      if (isVisible && tabs.length === 0 && currentDirectory) {
+      if (isVisible && tabs.length === 0 && currentWorkspace) {
         createNewTab();
       }
-    }, [isVisible, currentDirectory, tabs.length, createNewTab]);
+    }, [isVisible, currentWorkspace, tabs.length, createNewTab]);
 
     const closeTab = useCallback((tabId: string, e: React.MouseEvent) => {
       e.stopPropagation();
@@ -169,9 +169,9 @@ export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
             {/* Add tab button - next to last tab */}
             <button
               onClick={() => createNewTab()}
-              disabled={!currentDirectory}
+              disabled={!currentWorkspace}
               className="p-1.5 text-fg-muted hover:text-fg-primary hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title={currentDirectory ? "New Terminal" : "Select a directory first"}
+              title={currentWorkspace ? "New Terminal" : "Select a workspace first"}
             >
               <Plus size={14} />
             </button>
@@ -185,16 +185,16 @@ export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
               key={tab.id}
               className={`absolute inset-0 ${activeTabId === tab.id ? 'visible' : 'invisible'}`}
             >
-              {currentDirectory && (
+              {currentWorkspace && (
                 <TerminalView
                   sessionId={tab.id}
                   sessionName={tab.name}
-                  folderPath={currentDirectory}
+                  folderPath={currentWorkspace}
                   isVisible={activeTabId === tab.id}
                   isFocused={activeTabId === tab.id}
                   runInitialCommand={false}
                   initialCommand={tab.initialCommand}
-                  directoryId={currentDirectoryId}
+                  workspaceId={currentWorkspaceId}
                 />
               )}
             </div>
@@ -202,7 +202,7 @@ export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
 
           {tabs.length === 0 && (
             <div className="flex items-center justify-center h-full text-fg-muted text-sm">
-              {currentDirectory ? 'No terminals open' : 'Select a directory to open a terminal'}
+              {currentWorkspace ? 'No terminals open' : 'Select a workspace to open a terminal'}
             </div>
           )}
         </div>

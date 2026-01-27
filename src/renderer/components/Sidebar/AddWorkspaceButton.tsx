@@ -1,8 +1,8 @@
-interface AddDirectoryButtonProps {
+interface AddWorkspaceButtonProps {
   onClick: () => void;
 }
 
-export function AddDirectoryButton({ onClick }: AddDirectoryButtonProps) {
+export function AddWorkspaceButton({ onClick }: AddWorkspaceButtonProps) {
   return (
     <button
       onClick={onClick}

@@ -89,14 +89,14 @@ export function MobileApp() {
 
     const handleCreateSession = () => {
         const urlParams = new URLSearchParams(window.location.search);
-        const directoryId = urlParams.get('directoryId');
+        const workspaceId = urlParams.get('workspaceId');
 
-        if (!directoryId || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
+        if (!workspaceId || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
             return;
         }
 
         setIsCreatingSession(true);
-        socketRef.current.send(JSON.stringify({ type: 'createSession', directoryId }));
+        socketRef.current.send(JSON.stringify({ type: 'createSession', workspaceId }));
     };
 
     // Keyboard detection logic
@@ -209,10 +209,10 @@ export function MobileApp() {
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
-        const directoryId = urlParams.get('directoryId');
+        const workspaceId = urlParams.get('workspaceId');
         const wsPort = urlParams.get('wsPort') || '3001';
 
-        if (!token || !directoryId) {
+        if (!token || !workspaceId) {
             setStatus('Invalid connection URL');
             return;
         }
@@ -222,7 +222,7 @@ export function MobileApp() {
         }
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.hostname}:${wsPort}/remote?token=${token}&directoryId=${directoryId}`;
+        const wsUrl = `${protocol}//${window.location.hostname}:${wsPort}/remote?token=${token}&workspaceId=${workspaceId}`;
 
         const socket = new WebSocket(wsUrl);
         socketRef.current = socket;
@@ -261,8 +261,8 @@ export function MobileApp() {
             try {
                 const data = JSON.parse(event.data);
                 if (data.type === 'connected') {
-                    socket.send(JSON.stringify({ type: 'getSessions', directoryId }));
-                    socket.send(JSON.stringify({ type: 'getSettings', directoryId }));
+                    socket.send(JSON.stringify({ type: 'getSessions', workspaceId }));
+                    socket.send(JSON.stringify({ type: 'getSettings', workspaceId }));
                 } else if (data.type === 'settings') {
                     if (isActive) setSettings(data.settings);
                 } else if (data.type === 'data') {

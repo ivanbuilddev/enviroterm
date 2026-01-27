@@ -1,15 +1,15 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron';
 import { WorkspaceStore } from '../services/WorkspaceStore';
-import { CreateDirectoryResult } from '../../shared/types';
+import { CreateWorkspaceResult } from '../../shared/types';
 
 export function registerWorkspaceHandlers(): void {
-  // --- DIRECTORY HANDLERS ---
+  // --- WORKSPACE HANDLERS ---
 
-  ipcMain.handle('directories:getAll', () => {
-    return WorkspaceStore.getDirectories();
+  ipcMain.handle('workspaces:getAll', () => {
+    return WorkspaceStore.getWorkspaces();
   });
 
-  ipcMain.handle('directories:create', async (event): Promise<CreateDirectoryResult> => {
+  ipcMain.handle('workspaces:create', async (event): Promise<CreateWorkspaceResult> => {
     const window = BrowserWindow.fromWebContents(event.sender);
     const result = await dialog.showOpenDialog(window!, {
       properties: ['openDirectory'],
@@ -21,8 +21,8 @@ export function registerWorkspaceHandlers(): void {
     }
 
     try {
-      const directory = WorkspaceStore.createDirectory(result.filePaths[0]);
-      return { success: true, directory };
+      const workspace = WorkspaceStore.createWorkspace(result.filePaths[0]);
+      return { success: true, workspace };
     } catch (error) {
       return {
         success: false,
@@ -31,29 +31,29 @@ export function registerWorkspaceHandlers(): void {
     }
   });
 
-  ipcMain.handle('directories:updateLastAccessed', (_, id: string) => {
-    WorkspaceStore.updateDirectoryLastAccessed(id);
+  ipcMain.handle('workspaces:updateLastAccessed', (_, id: string) => {
+    WorkspaceStore.updateWorkspaceLastAccessed(id);
   });
 
-  ipcMain.handle('directories:rename', (_, id: string, name: string) => {
-    WorkspaceStore.renameDirectory(id, name);
+  ipcMain.handle('workspaces:rename', (_, id: string, name: string) => {
+    WorkspaceStore.renameWorkspace(id, name);
   });
 
-  ipcMain.handle('directories:delete', (_, id: string) => WorkspaceStore.deleteDirectory(id));
-  ipcMain.handle('directories:reorder', (_, ids: string[]) => WorkspaceStore.reorderDirectories(ids));
-  ipcMain.handle('directories:openInVSCode', (_, folderPath: string) => {
+  ipcMain.handle('workspaces:delete', (_, id: string) => WorkspaceStore.deleteWorkspace(id));
+  ipcMain.handle('workspaces:reorder', (_, ids: string[]) => WorkspaceStore.reorderWorkspaces(ids));
+  ipcMain.handle('workspaces:openInVSCode', (_, folderPath: string) => {
     const { exec } = require('child_process');
     exec(`code "${folderPath}"`);
   });
 
   // --- SESSION HANDLERS ---
 
-  ipcMain.handle('sessions:getByDirectory', (_, directoryId: string) => {
-    return WorkspaceStore.getSessionsByDirectory(directoryId);
+  ipcMain.handle('sessions:getByWorkspace', (_, workspaceId: string) => {
+    return WorkspaceStore.getSessionsByWorkspace(workspaceId);
   });
 
-  ipcMain.handle('sessions:create', (_, directoryId: string, name?: string) => {
-    return WorkspaceStore.createSession(directoryId, name);
+  ipcMain.handle('sessions:create', (_, workspaceId: string, name?: string) => {
+    return WorkspaceStore.createSession(workspaceId, name);
   });
 
   ipcMain.handle('sessions:rename', (_, id: string, name: string) => {

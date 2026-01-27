@@ -1,5 +1,5 @@
-// Directory data structure (Sidebar items)
-export interface Directory {
+// Workspace data structure (Sidebar items)
+export interface Workspace {
   id: string;
   path: string;
   name: string;
@@ -12,16 +12,16 @@ export interface Directory {
 // Session data structure (Terminal windows)
 export interface Session {
   id: string;
-  directoryId: string;
+  workspaceId: string;
   name: string;             // Editable title
   lastAccessedAt: number;
   createdAt: number;
 }
 
-// Result from creating a directory via folder picker
-export interface CreateDirectoryResult {
+// Result from creating a workspace via folder picker
+export interface CreateWorkspaceResult {
   success: boolean;
-  directory?: Directory;
+  workspace?: Workspace;
   error?: string;
   cancelled?: boolean;
 }
@@ -37,9 +37,9 @@ export interface ElectronAPI {
   clipboard: {
     writeImage: (base64DataUrl: string) => Promise<boolean>;
   };
-  directories: {
-    getAll: () => Promise<Directory[]>;
-    create: () => Promise<CreateDirectoryResult>;
+  workspaces: {
+    getAll: () => Promise<Workspace[]>;
+    create: () => Promise<CreateWorkspaceResult>;
     updateLastAccessed: (id: string) => Promise<void>;
     rename: (id: string, name: string) => Promise<void>;
     delete: (id: string) => Promise<void>;
@@ -47,8 +47,8 @@ export interface ElectronAPI {
     openInVSCode: (path: string) => Promise<void>;
   };
   sessions: {
-    getByDirectory: (directoryId: string) => Promise<Session[]>;
-    create: (directoryId: string, name?: string) => Promise<Session>;
+    getByWorkspace: (workspaceId: string) => Promise<Session[]>;
+    create: (workspaceId: string, name?: string) => Promise<Session>;
     rename: (id: string, name: string) => Promise<void>;
     delete: (id: string) => Promise<void>;
     onCreated: (callback: (session: Session) => void) => () => void;
@@ -72,13 +72,13 @@ export interface ElectronAPI {
   };
   remote: {
     getDetails: () => Promise<{ port: number; ips: string[]; rendererUrl: string }>;
-    generateToken: (directoryId: string) => Promise<string>;
-    broadcastSettings: (directoryId: string) => void;
+    generateToken: (workspaceId: string) => Promise<string>;
+    broadcastSettings: (workspaceId: string) => void;
   };
   settings: {
-    get: (directoryId?: string) => Promise<any>;
-    set: (settings: any, directoryId?: string) => Promise<any>;
-    getInitialCommand: (directoryId?: string) => Promise<string>;
+    get: (workspaceId?: string) => Promise<any>;
+    set: (settings: any, workspaceId?: string) => Promise<any>;
+    getInitialCommand: (workspaceId?: string) => Promise<string>;
   };
   getWebviewPreloadPath: () => Promise<string>;
 }

@@ -1,42 +1,42 @@
-import { Directory, Session } from '../../../shared/types';
+import { Workspace, Session } from '../../../shared/types';
 import { useMemo } from 'react';
 import vscodeIcon from '../../assets/icons/vscode.svg';
 import { Settings } from 'lucide-react';
 
-interface DirectoryPopoverProps {
-    directory: Directory;
+interface WorkspacePopoverProps {
+    workspace: Workspace;
     sessions: Session[];
     onSelectSession: (sessionId: string) => void;
-    onDeleteDirectory: () => void;
+    onDeleteWorkspace: () => void;
     onOpenInVSCode: () => void;
     onSendToPhone: () => void;
     onOpenSettings: () => void;
 }
 
-export function DirectoryPopover({
-    directory,
+export function WorkspacePopover({
+    workspace,
     sessions,
     onSelectSession,
-    onDeleteDirectory,
+    onDeleteWorkspace,
     onOpenInVSCode,
     onSendToPhone,
     onOpenSettings
-}: DirectoryPopoverProps) {
+}: WorkspacePopoverProps) {
     const createdDate = useMemo(() => {
-        return new Date(directory.createdAt).toLocaleDateString(undefined, {
+        return new Date(workspace.createdAt).toLocaleDateString(undefined, {
             year: 'numeric',
             month: 'short',
             day: 'numeric'
         });
-    }, [directory.createdAt]);
+    }, [workspace.createdAt]);
 
     return (
         <div className="w-64 bg-bg-surface border border-border shadow-2xl flex flex-col p-4 animate-in fade-in slide-in-from-left-2 duration-150">
             {/* Header */}
             <div className="mb-4">
-                <h3 className="text-[10px] font-header text-fg-muted uppercase tracking-widest mb-1">Directory Output</h3>
-                <p className="text-[12px] font-header text-fg-primary truncate" title={directory.path}>
-                    {directory.path}
+                <h3 className="text-[10px] font-header text-fg-muted uppercase tracking-widest mb-1">Workspace Path</h3>
+                <p className="text-[12px] font-header text-fg-primary truncate" title={workspace.path}>
+                    {workspace.path}
                 </p>
                 <p className="text-[9px] text-fg-faint mt-1">Created on {createdDate}</p>
             </div>
@@ -90,13 +90,13 @@ export function DirectoryPopover({
                     Send to Phone
                 </button>
                 <button
-                    onClick={onDeleteDirectory}
+                    onClick={onDeleteWorkspace}
                     className="w-full text-left px-2 py-1.5 hover:bg-status-error/10 hover:text-status-error text-[10px] text-fg-secondary flex items-center gap-2 transition-colors"
                 >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
-                    Delete Directory
+                    Delete Workspace
                 </button>
             </div>
         </div>

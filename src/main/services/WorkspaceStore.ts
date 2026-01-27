@@ -1,18 +1,38 @@
 import { randomUUID } from 'crypto';
-import { Directory, Session } from '../../shared/types';
+import { Workspace, Session } from '../../shared/types';
 import { JsonStore } from './JsonStore';
 
 interface StoreSchema {
-  directories: Directory[];
+  workspaces: Workspace[];
   sessions: Session[];
 }
 
 const store = new JsonStore<StoreSchema>('workspaces_data.json', {
-  directories: [],
+  workspaces: [],
   sessions: []
 });
 
+// Migration logic: Handle legacy "directories" key
+const legacyData = (store as any).get('directories');
+if (legacyData && legacyData.length > 0) {
+  const existingWorkspaces = store.get('workspaces');
+  if (existingWorkspaces.length === 0) {
+    console.log('[WorkspaceStore] Migrating legacy directory data to workspaces');
+    store.set('workspaces', legacyData);
+    (store as any).delete('directories');
 
+    // Also migrate session directoryId to workspaceId
+    const sessions = store.get('sessions');
+    const migratedSessions = sessions.map((s: any) => {
+      if (s.directoryId && !s.workspaceId) {
+        const { directoryId, ...rest } = s;
+        return { ...rest, workspaceId: directoryId };
+      }
+      return s;
+    });
+    store.set('sessions', migratedSessions);
+  }
+}
 
 function generateRandomColor(): string {
   const hue = Math.floor(Math.random() * 360);
@@ -29,21 +49,21 @@ function getContrastTextColor(hslColor: string): string {
 }
 
 export const WorkspaceStore = {
-  // --- DIRECTORY METHODS ---
-  getDirectories(): Directory[] {
-    return store.get('directories');
+  // --- WORKSPACE METHODS ---
+  getWorkspaces(): Workspace[] {
+    return store.get('workspaces');
   },
 
-  getDirectoryById(id: string): Directory | undefined {
-    return store.get('directories').find(d => d.id === id);
+  getWorkspaceById(id: string): Workspace | undefined {
+    return store.get('workspaces').find(w => w.id === id);
   },
 
-  createDirectory(folderPath: string): Directory {
+  createWorkspace(folderPath: string): Workspace {
     const now = Date.now();
     const folderName = folderPath; // The name is the full path
     const backgroundColor = generateRandomColor();
 
-    const directory: Directory = {
+    const workspace: Workspace = {
       id: randomUUID(),
       path: folderPath,
       name: folderName,
@@ -53,39 +73,39 @@ export const WorkspaceStore = {
       createdAt: now
     };
 
-    const directories = store.get('directories');
-    directories.push(directory);
-    store.set('directories', directories);
+    const workspaces = store.get('workspaces');
+    workspaces.push(workspace);
+    store.set('workspaces', workspaces);
 
-    // Create an initial session for this directory
-    this.createSession(directory.id, folderName);
+    // Create an initial session for this workspace
+    this.createSession(workspace.id, folderName);
 
-    return directory;
+    return workspace;
   },
 
-  updateDirectoryLastAccessed(id: string): void {
-    const directories = store.get('directories');
-    const index = directories.findIndex(d => d.id === id);
+  updateWorkspaceLastAccessed(id: string): void {
+    const workspaces = store.get('workspaces');
+    const index = workspaces.findIndex(w => w.id === id);
     if (index !== -1) {
-      directories[index].lastAccessedAt = Date.now();
-      store.set('directories', directories);
+      workspaces[index].lastAccessedAt = Date.now();
+      store.set('workspaces', workspaces);
     }
   },
 
-  renameDirectory(id: string, newName: string): void {
-    const directories = store.get('directories');
-    const index = directories.findIndex(d => d.id === id);
+  renameWorkspace(id: string, newName: string): void {
+    const workspaces = store.get('workspaces');
+    const index = workspaces.findIndex(w => w.id === id);
     if (index !== -1) {
-      directories[index].name = newName;
-      store.set('directories', directories);
+      workspaces[index].name = newName;
+      store.set('workspaces', workspaces);
     }
   },
 
-  deleteDirectory(id: string): void {
-    const directories = store.get('directories').filter(d => d.id !== id);
-    store.set('directories', directories);
+  deleteWorkspace(id: string): void {
+    const workspaces = store.get('workspaces').filter(w => w.id !== id);
+    store.set('workspaces', workspaces);
     // Also delete associated sessions
-    const sessions = store.get('sessions').filter(s => s.directoryId !== id);
+    const sessions = store.get('sessions').filter(s => s.workspaceId !== id);
     store.set('sessions', sessions);
     // New: Cleanup workspace-specific settings
     import('./SettingsStore').then(({ SettingsStore }) => {
@@ -93,25 +113,25 @@ export const WorkspaceStore = {
     });
   },
 
-  reorderDirectories(ids: string[]): void {
-    const directories = store.get('directories');
-    const reordered = ids.map(id => directories.find(d => d.id === id)).filter(Boolean) as Directory[];
+  reorderWorkspaces(ids: string[]): void {
+    const workspaces = store.get('workspaces');
+    const reordered = ids.map(id => workspaces.find(w => w.id === id)).filter(Boolean) as Workspace[];
 
-    // Add any directories that might have been missing from the IDs list (safety)
-    const missing = directories.filter(d => !ids.includes(d.id));
-    store.set('directories', [...reordered, ...missing]);
+    // Add any workspaces that might have been missing from the IDs list (safety)
+    const missing = workspaces.filter(w => !ids.includes(w.id));
+    store.set('workspaces', [...reordered, ...missing]);
   },
 
   // --- SESSION METHODS ---
-  getSessionsByDirectory(directoryId: string): Session[] {
-    return store.get('sessions').filter(s => s.directoryId === directoryId);
+  getSessionsByWorkspace(workspaceId: string): Session[] {
+    return store.get('sessions').filter(s => s.workspaceId === workspaceId);
   },
 
-  createSession(directoryId: string, name?: string): Session {
+  createSession(workspaceId: string, name?: string): Session {
     const now = Date.now();
     const session: Session = {
       id: randomUUID(),
-      directoryId,
+      workspaceId,
       name: name || 'Terminal',
       lastAccessedAt: now,
       createdAt: now
@@ -138,13 +158,13 @@ export const WorkspaceStore = {
   },
 
   resetSessions(): void {
-    const directories = store.get('directories');
+    const workspaces = store.get('workspaces');
     const newSessions: Session[] = [];
 
-    directories.forEach(dir => {
+    workspaces.forEach(ws => {
       newSessions.push({
         id: randomUUID(),
-        directoryId: dir.id,
+        workspaceId: ws.id,
         name: 'Terminal 1',
         lastAccessedAt: Date.now(),
         createdAt: Date.now()

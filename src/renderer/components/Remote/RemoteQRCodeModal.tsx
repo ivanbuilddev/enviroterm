@@ -3,12 +3,12 @@ import { QRCodeSVG } from 'qrcode.react';
 import { X, Smartphone, Wifi, ShieldCheck, ChevronDown } from 'lucide-react';
 
 interface RemoteQRCodeModalProps {
-    directoryId: string;
-    directoryPath: string;
+    workspaceId: string;
+    workspacePath: string;
     onClose: () => void;
 }
 
-export function RemoteQRCodeModal({ directoryId, directoryPath, onClose }: RemoteQRCodeModalProps) {
+export function RemoteQRCodeModal({ workspaceId, workspacePath, onClose }: RemoteQRCodeModalProps) {
     const [details, setDetails] = useState<{ port: number; ips: string[]; token: string; rendererUrl: string } | null>(null);
     const [selectedIp, setSelectedIp] = useState<string>('');
 
@@ -17,7 +17,7 @@ export function RemoteQRCodeModal({ directoryId, directoryPath, onClose }: Remot
 
         const fetchDetails = async () => {
             const { port, ips, rendererUrl } = await window.electronAPI.remote.getDetails();
-            const token = await window.electronAPI.remote.generateToken(directoryId);
+            const token = await window.electronAPI.remote.generateToken(workspaceId);
 
             // Prevent state update if effect was cleaned up (avoids race condition on remount)
             if (cancelled) return;
@@ -34,7 +34,7 @@ export function RemoteQRCodeModal({ directoryId, directoryPath, onClose }: Remot
         return () => {
             cancelled = true;
         };
-    }, [directoryId]);
+    }, [workspaceId]);
 
     if (!details || !selectedIp) return null;
 
@@ -45,7 +45,7 @@ export function RemoteQRCodeModal({ directoryId, directoryPath, onClose }: Remot
     // Ensure it's a valid URL and append parameters
     const urlObj = new URL(baseUrl);
     urlObj.searchParams.set('token', details.token);
-    urlObj.searchParams.set('directoryId', directoryId);
+    urlObj.searchParams.set('workspaceId', workspaceId);
     urlObj.searchParams.set('wsPort', details.port.toString()); // Tell mobile which port to use for WS
 
     const url = urlObj.toString();
@@ -74,7 +74,7 @@ export function RemoteQRCodeModal({ directoryId, directoryPath, onClose }: Remot
                         <h2 className="text-lg font-header text-fg-primary mb-1">Send to Phone</h2>
                         <p className="text-[12px] text-fg-muted px-4">
                             Scan this code with your phone to control terminals in
-                            <span className="text-fg-primary font-medium block mt-1">{directoryPath.split(/[/\\]/).pop()}</span>
+                            <span className="text-fg-primary font-medium block mt-1">{workspacePath.split(/[/\\]/).pop()}</span>
                         </p>
                     </div>
 

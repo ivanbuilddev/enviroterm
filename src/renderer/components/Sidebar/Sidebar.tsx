@@ -1,37 +1,37 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Terminal, PanelBottom, Globe, Settings } from 'lucide-react';
-import { Directory, Session } from '../../../shared/types';
-import { DirectoryIcon } from './DirectoryIcon';
-import { AddDirectoryButton } from './AddDirectoryButton';
-import { DirectoryPopover } from './DirectoryPopover';
+import { Workspace, Session } from '../../../shared/types';
+import { WorkspaceIcon } from './WorkspaceIcon';
+import { AddWorkspaceButton } from './AddWorkspaceButton';
+import { WorkspacePopover } from './WorkspacePopover';
 import { RemoteQRCodeModal } from '../Remote/RemoteQRCodeModal';
 
 interface SidebarProps {
-  directories: Directory[];
-  activeDirectoryId: string | null;
-  onSelectDirectory: (id: string) => void;
-  onAddDirectory: () => void;
-  onReorderDirectories: (ids: string[]) => void;
-  onDeleteDirectory: (id: string) => void;
+  workspaces: Workspace[];
+  activeWorkspaceId: string | null;
+  onSelectWorkspace: (id: string) => void;
+  onAddWorkspace: () => void;
+  onReorderWorkspaces: (ids: string[]) => void;
+  onDeleteWorkspace: (id: string) => void;
   onOpenInVSCode: (path: string) => void;
-  onSelectSession: (directoryId: string, sessionId: string) => void;
+  onSelectSession: (workspaceId: string, sessionId: string) => void;
   onCreateSession: () => void;
   onToggleBottomPanel: () => void;
   isBottomPanelVisible: boolean;
   onToggleBrowserPanel: () => void;
   isBrowserPanelVisible: boolean;
   onOpenSettings: () => void;
-  onOpenWorkspaceSettings: (directoryId: string, workspaceName: string) => void;
+  onOpenWorkspaceSettings: (workspaceId: string, workspaceName: string) => void;
 }
 
 export function Sidebar({
-  directories,
-  activeDirectoryId,
-  onSelectDirectory,
-  onAddDirectory,
-  onReorderDirectories,
-  onDeleteDirectory,
+  workspaces,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onAddWorkspace,
+  onReorderWorkspaces,
+  onDeleteWorkspace,
   onOpenInVSCode,
   onSelectSession,
   onCreateSession,
@@ -65,16 +65,16 @@ export function Sidebar({
     const sourceId = e.dataTransfer.getData('text/plain');
     if (!sourceId || sourceId === targetId) return;
 
-    const sourceIndex = directories.findIndex(d => d.id === sourceId);
-    const targetIndex = directories.findIndex(d => d.id === targetId);
+    const sourceIndex = workspaces.findIndex(w => w.id === sourceId);
+    const targetIndex = workspaces.findIndex(w => w.id === targetId);
 
     if (sourceIndex === -1 || targetIndex === -1) return;
 
-    const newDirectories = [...directories];
-    const [removed] = newDirectories.splice(sourceIndex, 1);
-    newDirectories.splice(targetIndex, 0, removed);
+    const newWorkspaces = [...workspaces];
+    const [removed] = newWorkspaces.splice(sourceIndex, 1);
+    newWorkspaces.splice(targetIndex, 0, removed);
 
-    onReorderDirectories(newDirectories.map(d => d.id));
+    onReorderWorkspaces(newWorkspaces.map(w => w.id));
     setDraggedId(null);
   };
 
@@ -84,7 +84,7 @@ export function Sidebar({
     setPopoverPos({ top: rect.top, left: rect.right + 8 });
     setHoveredId(id);
     try {
-      const sessions = await window.electronAPI.sessions.getByDirectory(id);
+      const sessions = await window.electronAPI.sessions.getByWorkspace(id);
       setHoveredSessions(sessions);
     } catch (err) {
       console.error('Failed to fetch sessions for popover', err);
@@ -100,44 +100,44 @@ export function Sidebar({
 
   return (
     <aside className="w-16 bg-bg-elevated border-r border-border flex flex-col items-center h-full z-[200] relative">
-      {/* Directories section - scrollable if needed */}
+      {/* Workspaces section - scrollable if needed */}
       <div className="flex flex-col items-center gap-2 w-full overflow-y-auto pt-3 pb-28">
-        {directories.map(directory => (
+        {workspaces.map(workspace => (
           <div
-            key={directory.id}
+            key={workspace.id}
             draggable
-            onDragStart={(e) => handleDragStart(e, directory.id)}
+            onDragStart={(e) => handleDragStart(e, workspace.id)}
             onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, directory.id)}
-            onMouseEnter={(e) => handleMouseEnter(e, directory.id)}
+            onDrop={(e) => handleDrop(e, workspace.id)}
+            onMouseEnter={(e) => handleMouseEnter(e, workspace.id)}
             onMouseLeave={handleMouseLeave}
-            className={`relative transition-opacity duration-200 ${draggedId === directory.id ? 'opacity-40' : 'opacity-100'}`}
+            className={`relative transition-opacity duration-200 ${draggedId === workspace.id ? 'opacity-40' : 'opacity-100'}`}
           >
-            <DirectoryIcon
-              directory={directory}
-              isSelected={directory.id === activeDirectoryId}
-              onClick={() => onSelectDirectory(directory.id)}
+            <WorkspaceIcon
+              workspace={workspace}
+              isSelected={workspace.id === activeWorkspaceId}
+              onClick={() => onSelectWorkspace(workspace.id)}
             />
 
-            {hoveredId === directory.id && createPortal(
+            {hoveredId === workspace.id && createPortal(
               <div
                 className="fixed z-[5000]"
                 style={{ top: popoverPos.top, left: popoverPos.left }}
                 onMouseEnter={() => clearTimeout(popoverTimerRef.current)}
                 onMouseLeave={handleMouseLeave}
               >
-                <DirectoryPopover
-                  directory={directory}
+                <WorkspacePopover
+                  workspace={workspace}
                   sessions={hoveredSessions}
-                  onSelectSession={(sessionId) => onSelectSession(directory.id, sessionId)}
-                  onDeleteDirectory={() => onDeleteDirectory(directory.id)}
-                  onOpenInVSCode={() => onOpenInVSCode(directory.path)}
+                  onSelectSession={(sessionId) => onSelectSession(workspace.id, sessionId)}
+                  onDeleteWorkspace={() => onDeleteWorkspace(workspace.id)}
+                  onOpenInVSCode={() => onOpenInVSCode(workspace.path)}
                   onSendToPhone={() => {
-                    setRemoteModalData({ id: directory.id, path: directory.path });
+                    setRemoteModalData({ id: workspace.id, path: workspace.path });
                     setHoveredId(null);
                   }}
                   onOpenSettings={() => {
-                    onOpenWorkspaceSettings(directory.id, directory.name);
+                    onOpenWorkspaceSettings(workspace.id, workspace.name);
                     setHoveredId(null);
                   }}
                 />
@@ -146,13 +146,13 @@ export function Sidebar({
             )}
           </div>
         ))}
-        <AddDirectoryButton onClick={onAddDirectory} />
+        <AddWorkspaceButton onClick={onAddWorkspace} />
       </div>
 
       {remoteModalData && (
         <RemoteQRCodeModal
-          directoryId={remoteModalData.id}
-          directoryPath={remoteModalData.path}
+          workspaceId={remoteModalData.id}
+          workspacePath={remoteModalData.path}
           onClose={() => setRemoteModalData(null)}
         />
       )}

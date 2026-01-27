@@ -29,18 +29,18 @@ const workspaceStore = new JsonStore<WorkspaceSettings>('workspace_settings.json
 });
 
 export const SettingsStore = {
-  getAll(directoryId?: string): GlobalSettings & { workspaceOverrides?: Record<string, Partial<GlobalSettings>> } {
+  getAll(workspaceId?: string): GlobalSettings & { workspaceOverrides?: Record<string, Partial<GlobalSettings>> } {
     const global = globalStore.getAll();
     const overrides = workspaceStore.get('overrides');
 
-    if (!directoryId) {
+    if (!workspaceId) {
       return {
         ...global,
         workspaceOverrides: overrides
       };
     }
 
-    const workspaceOverride = overrides[directoryId] || {};
+    const workspaceOverride = overrides[workspaceId] || {};
 
     // Initial command: follow workspace override if defined, else global
     const initialCommand = workspaceOverride.initialCommand !== undefined
@@ -65,8 +65,8 @@ export const SettingsStore = {
     };
   },
 
-  setAll(settings: Partial<GlobalSettings>, directoryId?: string): void {
-    if (!directoryId) {
+  setAll(settings: Partial<GlobalSettings>, workspaceId?: string): void {
+    if (!workspaceId) {
       if (settings.initialCommand !== undefined) {
         globalStore.set('initialCommand', settings.initialCommand);
       }
@@ -78,9 +78,9 @@ export const SettingsStore = {
       }
     } else {
       const overrides = workspaceStore.get('overrides');
-      const currentOverride = overrides[directoryId] || {};
+      const currentOverride = overrides[workspaceId] || {};
 
-      overrides[directoryId] = {
+      overrides[workspaceId] = {
         ...currentOverride,
         ...(settings.initialCommand !== undefined && { initialCommand: settings.initialCommand }),
         ...(settings.keyboardShortcuts !== undefined && { keyboardShortcuts: settings.keyboardShortcuts }),
@@ -91,29 +91,29 @@ export const SettingsStore = {
     }
   },
 
-  deleteForWorkspace(directoryId: string): void {
+  deleteForWorkspace(workspaceId: string): void {
     const overrides = workspaceStore.get('overrides');
-    if (overrides[directoryId]) {
-      delete overrides[directoryId];
+    if (overrides[workspaceId]) {
+      delete overrides[workspaceId];
       workspaceStore.set('overrides', overrides);
     }
   },
 
-  getInitialCommand(directoryId?: string): string {
-    if (directoryId) {
+  getInitialCommand(workspaceId?: string): string {
+    if (workspaceId) {
       const overrides = workspaceStore.get('overrides');
-      if (overrides[directoryId]?.initialCommand !== undefined) {
-        return overrides[directoryId].initialCommand!;
+      if (overrides[workspaceId]?.initialCommand !== undefined) {
+        return overrides[workspaceId].initialCommand!;
       }
     }
     return globalStore.get('initialCommand');
   },
 
-  getKeyboardShortcuts(directoryId?: string): KeyboardShortcut[] {
+  getKeyboardShortcuts(workspaceId?: string): KeyboardShortcut[] {
     const globalShortcuts = globalStore.get('keyboardShortcuts') || [];
-    if (directoryId) {
+    if (workspaceId) {
       const overrides = workspaceStore.get('overrides');
-      const workspaceShortcuts = overrides[directoryId]?.keyboardShortcuts;
+      const workspaceShortcuts = overrides[workspaceId]?.keyboardShortcuts;
       if (workspaceShortcuts && workspaceShortcuts.length > 0) {
         return workspaceShortcuts;
       }
@@ -121,23 +121,23 @@ export const SettingsStore = {
     return globalShortcuts;
   },
 
-  addKeyboardShortcut(shortcut: Omit<KeyboardShortcut, 'id'>, directoryId?: string): KeyboardShortcut {
+  addKeyboardShortcut(shortcut: Omit<KeyboardShortcut, 'id'>, workspaceId?: string): KeyboardShortcut {
     const newShortcut: KeyboardShortcut = {
       ...shortcut,
       id: randomUUID()
     };
 
-    if (!directoryId) {
+    if (!workspaceId) {
       const shortcuts = globalStore.get('keyboardShortcuts');
       shortcuts.push(newShortcut);
       globalStore.set('keyboardShortcuts', shortcuts);
     } else {
       const overrides = workspaceStore.get('overrides');
-      const currentOverride = overrides[directoryId] || {};
+      const currentOverride = overrides[workspaceId] || {};
       const shortcuts = currentOverride.keyboardShortcuts || [...globalStore.get('keyboardShortcuts')];
 
       shortcuts.push(newShortcut);
-      overrides[directoryId] = { ...currentOverride, keyboardShortcuts: shortcuts };
+      overrides[workspaceId] = { ...currentOverride, keyboardShortcuts: shortcuts };
       workspaceStore.set('overrides', overrides);
     }
     return newShortcut;

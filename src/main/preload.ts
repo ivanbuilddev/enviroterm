@@ -4,22 +4,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   clipboard: {
     writeImage: (base64DataUrl: string) => ipcRenderer.invoke('clipboard:writeImage', base64DataUrl),
   },
-  directories: {
-    getAll: () => ipcRenderer.invoke('directories:getAll'),
-    create: () => ipcRenderer.invoke('directories:create'),
-    updateLastAccessed: (id: string) => ipcRenderer.invoke('directories:updateLastAccessed', id),
-    rename: (id: string, name: string) => ipcRenderer.invoke('directories:rename', id, name),
-    delete: (id: string) => ipcRenderer.invoke('directories:delete', id),
-    reorder: (ids: string[]) => ipcRenderer.invoke('directories:reorder', ids),
-    openInVSCode: (path: string) => ipcRenderer.invoke('directories:openInVSCode', path),
+  workspaces: {
+    getAll: () => ipcRenderer.invoke('workspaces:getAll'),
+    create: () => ipcRenderer.invoke('workspaces:create'),
+    updateLastAccessed: (id: string) => ipcRenderer.invoke('workspaces:updateLastAccessed', id),
+    rename: (id: string, name: string) => ipcRenderer.invoke('workspaces:rename', id, name),
+    delete: (id: string) => ipcRenderer.invoke('workspaces:delete', id),
+    reorder: (ids: string[]) => ipcRenderer.invoke('workspaces:reorder', ids),
+    openInVSCode: (path: string) => ipcRenderer.invoke('workspaces:openInVSCode', path),
   },
   sessions: {
-    getByDirectory: (directoryId: string) => ipcRenderer.invoke('sessions:getByDirectory', directoryId),
-    create: (directoryId: string, name?: string) => ipcRenderer.invoke('sessions:create', directoryId, name),
+    getByWorkspace: (workspaceId: string) => ipcRenderer.invoke('sessions:getByWorkspace', workspaceId),
+    create: (workspaceId: string, name?: string) => ipcRenderer.invoke('sessions:create', workspaceId, name),
     rename: (id: string, name: string) => ipcRenderer.invoke('sessions:rename', id, name),
     delete: (id: string) => ipcRenderer.invoke('sessions:delete', id),
-    onCreated: (callback: (session: { id: string; directoryId: string; name: string; lastAccessedAt: number; createdAt: number }) => void) => {
-      const handler = (_event: IpcRendererEvent, session: { id: string; directoryId: string; name: string; lastAccessedAt: number; createdAt: number }) => callback(session);
+    onCreated: (callback: (session: { id: string; workspaceId: string; name: string; lastAccessedAt: number; createdAt: number }) => void) => {
+      const handler = (_event: IpcRendererEvent, session: { id: string; workspaceId: string; name: string; lastAccessedAt: number; createdAt: number }) => callback(session);
       ipcRenderer.on('sessions:created', handler);
       return () => {
         ipcRenderer.removeListener('sessions:created', handler);
@@ -68,13 +68,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getWebviewPreloadPath: () => ipcRenderer.invoke('get-webview-preload-path'),
   remote: {
     getDetails: () => ipcRenderer.invoke('remote:getDetails'),
-    generateToken: (directoryId: string) => ipcRenderer.invoke('remote:generateToken', directoryId),
-    broadcastSettings: (directoryId: string) => ipcRenderer.send('remote:broadcastSettings', directoryId),
+    generateToken: (workspaceId: string) => ipcRenderer.invoke('remote:generateToken', workspaceId),
+    broadcastSettings: (workspaceId: string) => ipcRenderer.send('remote:broadcastSettings', workspaceId),
   },
   settings: {
-    get: (directoryId?: string) => ipcRenderer.invoke('settings:get', directoryId),
-    set: (settings: { initialCommand?: string; keyboardShortcuts?: any[] }, directoryId?: string) =>
-      ipcRenderer.invoke('settings:set', settings, directoryId),
-    getInitialCommand: (directoryId?: string) => ipcRenderer.invoke('settings:getInitialCommand', directoryId),
+    get: (workspaceId?: string) => ipcRenderer.invoke('settings:get', workspaceId),
+    set: (settings: { initialCommand?: string; keyboardShortcuts?: any[] }, workspaceId?: string) =>
+      ipcRenderer.invoke('settings:set', settings, workspaceId),
+    getInitialCommand: (workspaceId?: string) => ipcRenderer.invoke('settings:getInitialCommand', workspaceId),
   }
 });

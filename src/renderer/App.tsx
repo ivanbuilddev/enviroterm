@@ -13,15 +13,15 @@ function App() {
   }
 
   const {
-    directories,
-    activeDirectoryId,
-    activeDirectory,
+    workspaces,
+    activeWorkspaceId,
+    activeWorkspace,
     sessions,
     isLoading,
-    createDirectory,
-    selectDirectory,
-    deleteDirectory,
-    reorderDirectories,
+    createWorkspace,
+    selectWorkspace,
+    deleteWorkspace,
+    reorderWorkspaces,
     openInVSCode,
     createSession,
     renameSession,
@@ -37,8 +37,8 @@ function App() {
 
   const bottomPanelRef = useRef<BottomPanelHandle>(null);
 
-  const handleSelectSession = (directoryId: string, sessionId: string) => {
-    selectDirectory(directoryId);
+  const handleSelectSession = (workspaceId: string, sessionId: string) => {
+    selectWorkspace(workspaceId);
     setFocusedSessionId(sessionId);
     // Reset focus after a bit so it can be re-triggered
     setTimeout(() => setFocusedSessionId(null), 500);
@@ -74,7 +74,7 @@ function App() {
 
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center pointer-events-none">
           <span className="text-[11px] text-fg-primary font-header tracking-wider">
-            {activeDirectory?.path ?? 'Ready'}
+            {activeWorkspace?.path ?? 'Ready'}
           </span>
         </div>
 
@@ -116,12 +116,12 @@ function App() {
         >
           <div className="w-16 h-full">
             <Sidebar
-              directories={directories}
-              activeDirectoryId={activeDirectoryId}
-              onSelectDirectory={selectDirectory}
-              onAddDirectory={createDirectory}
-              onReorderDirectories={reorderDirectories}
-              onDeleteDirectory={deleteDirectory}
+              workspaces={workspaces}
+              activeWorkspaceId={activeWorkspaceId}
+              onSelectWorkspace={selectWorkspace}
+              onAddWorkspace={createWorkspace}
+              onReorderWorkspaces={reorderWorkspaces}
+              onDeleteWorkspace={deleteWorkspace}
               onOpenInVSCode={openInVSCode}
               onSelectSession={handleSelectSession}
               onCreateSession={() => createSession(`Terminal ${sessions.length + 1}`)}
@@ -147,7 +147,7 @@ function App() {
               ) : (
                 <TerminalManager
                   sessions={sessions}
-                  activeDirectory={activeDirectory}
+                  activeWorkspace={activeWorkspace}
                   focusedSessionId={focusedSessionId}
                   onRenameSession={renameSession}
                   onCreateSession={createSession}
@@ -159,8 +159,8 @@ function App() {
             <BottomPanel
               isVisible={isBottomPanelVisible}
               onClose={() => setIsBottomPanelVisible(false)}
-              currentDirectory={activeDirectory?.path ?? null}
-              currentDirectoryId={activeDirectoryId ?? undefined}
+              currentWorkspace={activeWorkspace?.path ?? null}
+              currentWorkspaceId={activeWorkspaceId ?? undefined}
               ref={bottomPanelRef}
             />
           </div>
@@ -177,7 +177,7 @@ function App() {
 
       {workspaceSettings && (
         <SettingsModal
-          directoryId={workspaceSettings.id}
+          workspaceId={workspaceSettings.id}
           workspaceName={workspaceSettings.name}
           onClose={() => setWorkspaceSettings(null)}
         />
@@ -186,7 +186,7 @@ function App() {
       {/* Status Bar */}
       <footer className="bg-bg-base border-t border-border px-4 py-1 text-[9px] text-fg-faint flex justify-between uppercase tracking-[0.2em]">
         <span>
-          {directories.length} Directories | {sessions.length} Active Sessions
+          {workspaces.length} Workspaces | {sessions.length} Active Sessions
         </span>
         <span>EnviroTerm</span>
       </footer>

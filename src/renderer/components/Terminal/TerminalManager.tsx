@@ -1,11 +1,11 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Session, Directory } from '../../../shared/types';
+import { Session, Workspace } from '../../../shared/types';
 import { TerminalView } from './TerminalView';
 import { TerminalWindow } from './TerminalWindow';
 
 interface TerminalManagerProps {
   sessions: Session[];
-  activeDirectory: Directory | null;
+  activeWorkspace: Workspace | null;
   focusedSessionId?: string | null;
   onRenameSession: (id: string, name: string) => Promise<void>;
   onCreateSession: (name?: string) => Promise<void>;
@@ -21,7 +21,7 @@ interface WindowGeometry {
 
 export function TerminalManager({
   sessions,
-  activeDirectory,
+  activeWorkspace,
   focusedSessionId,
   onRenameSession,
   onDeleteSession
@@ -138,13 +138,13 @@ export function TerminalManager({
     return offsets;
   }, [sessions.length]);
 
-  if (!activeDirectory) {
+  if (!activeWorkspace) {
     return (
       <div className="flex-1 flex items-center justify-center bg-bg-base/50">
         <div className="text-center p-8 border border-dashed border-border bg-bg-surface/30 backdrop-blur-sm">
-          <h2 className="text-xl font-header text-fg-primary mb-2">No Directory Selected</h2>
+          <h2 className="text-xl font-header text-fg-primary mb-2">No Workspace Selected</h2>
           <p className="text-fg-muted max-w-xs mx-auto">
-            Select a directory from the sidebar to start working.
+            Select a workspace from the sidebar to start working.
           </p>
         </div>
       </div>
@@ -194,11 +194,11 @@ export function TerminalManager({
               <TerminalView
                 sessionId={session.id}
                 sessionName={session.name}
-                folderPath={activeDirectory.path}
+                folderPath={activeWorkspace.path}
                 isVisible={true}
                 isFocused={session.id === focusedSessionId}
                 runInitialCommand={true}
-                directoryId={activeDirectory.id}
+                workspaceId={activeWorkspace.id}
               />
             </TerminalWindow>
           </div>

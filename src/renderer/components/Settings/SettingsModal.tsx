@@ -15,11 +15,11 @@ interface Settings {
 
 interface SettingsModalProps {
     onClose: () => void;
-    directoryId?: string;
+    workspaceId?: string;
     workspaceName?: string;
 }
 
-export function SettingsModal({ onClose, directoryId, workspaceName }: SettingsModalProps) {
+export function SettingsModal({ onClose, workspaceId, workspaceName }: SettingsModalProps) {
     const [settings, setSettings] = useState<Settings>({
         initialCommand: 'claude',
         keyboardShortcuts: [],
@@ -31,7 +31,7 @@ export function SettingsModal({ onClose, directoryId, workspaceName }: SettingsM
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const storedSettings = await window.electronAPI.settings.get(directoryId);
+                const storedSettings = await window.electronAPI.settings.get(workspaceId);
                 setSettings(storedSettings);
             } catch (err) {
                 console.error('Failed to fetch settings:', err);
@@ -96,10 +96,10 @@ export function SettingsModal({ onClose, directoryId, workspaceName }: SettingsM
 
     const handleSave = async () => {
         try {
-            await window.electronAPI.settings.set(settings, directoryId);
+            await window.electronAPI.settings.set(settings, workspaceId);
             // Broadcast settings to connected mobile devices
-            if (directoryId) {
-                window.electronAPI.remote.broadcastSettings(directoryId);
+            if (workspaceId) {
+                window.electronAPI.remote.broadcastSettings(workspaceId);
             }
             onClose();
         } catch (err) {
@@ -158,7 +158,7 @@ export function SettingsModal({ onClose, directoryId, workspaceName }: SettingsM
                     <div className="flex items-center justify-between mb-6 shrink-0">
                         <h2 className="text-xl font-header text-fg-primary flex items-center gap-2">
                             <Command size={20} className="text-accent-primary" />
-                            {directoryId ? `Workspace Settings: ${workspaceName}` : 'Global Settings'}
+                            {workspaceId ? `Workspace Settings: ${workspaceName}` : 'Global Settings'}
                         </h2>
                         <button
                             onClick={onClose}

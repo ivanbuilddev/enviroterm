@@ -1,14 +1,14 @@
-import { Directory } from '../../../shared/types';
+import { Workspace } from '../../../shared/types';
 
-interface DirectoryIconProps {
-  directory: Directory;
+interface WorkspaceIconProps {
+  workspace: Workspace;
   isSelected: boolean;
   onClick: () => void;
 }
 
-export function DirectoryIcon({ directory, isSelected, onClick }: DirectoryIconProps) {
+export function WorkspaceIcon({ workspace, isSelected, onClick }: WorkspaceIconProps) {
   // Always use the basename of the path for the icon letter
-  const folderName = directory.path.split(/[/\\]/).filter(Boolean).pop() || '';
+  const folderName = workspace.path.split(/[/\\]/).filter(Boolean).pop() || '';
   const firstLetter = folderName.charAt(0).toUpperCase();
 
   return (
@@ -21,8 +21,8 @@ export function DirectoryIcon({ directory, isSelected, onClick }: DirectoryIconP
         ${isSelected ? 'ring-2 ring-accent-primary scale-105' : ''}
       `}
       style={{
-        backgroundColor: directory.backgroundColor,
-        color: directory.textColor,
+        backgroundColor: workspace.backgroundColor,
+        color: workspace.textColor,
       }}
     >
       {firstLetter}
