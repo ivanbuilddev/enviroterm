@@ -218,9 +218,13 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
       const hasShift = keys.includes('Shift');
       const mainKey = keys.find(k => !['Alt', 'Ctrl', 'Shift', 'Meta'].includes(k))?.toLowerCase() || 'v';
 
+      // Use uppercase if Shift is pressed, otherwise lowercase
+      const char = hasShift ? mainKey.toUpperCase() : mainKey;
+
       if (hasAlt && !hasCtrl) {
         // Alt + key is ESC followed by the key
-        return `\x1b${mainKey}`;
+        // For Alt+Shift+V, this returns \x1bV
+        return `\x1b${char}`;
       } else if (hasCtrl && !hasAlt) {
         // Ctrl + key is the control character
         const charCode = mainKey.toUpperCase().charCodeAt(0);
@@ -231,8 +235,8 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
         // Ctrl+Alt+key
         return `\x1b${String.fromCharCode(mainKey.toUpperCase().charCodeAt(0) - 64)}`;
       }
-      // Default to Alt+V
-      return '\x1bv';
+      // Default to Alt+V or the appropriate char
+      return hasAlt ? `\x1b${char}` : char;
     };
 
     const handleImagePaste = async (imageData: any, imageShortcut?: string[]) => {
