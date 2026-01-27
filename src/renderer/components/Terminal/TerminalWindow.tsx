@@ -44,6 +44,7 @@ export function TerminalWindow({
     const [isMinimized, setIsMinimized] = useState(false);
     const [preMaximizeState, setPreMaximizeState] = useState<{ pos: typeof position, size: typeof size } | null>(null);
     const [ghostSize, setGhostSize] = useState({ width: initialWidth, height: initialHeight });
+    const [ghostPosition, setGhostPosition] = useState({ x: initialX, y: initialY });
     const [isEditing, setIsEditing] = useState(false);
     const [editedTitle, setEditedTitle] = useState(title);
     const dragStartPos = useRef({ x: 0, y: 0 });
@@ -125,6 +126,81 @@ export function TerminalWindow({
         };
     }, [isDragging, isMaximized]);
 
+    const handleResizeStart = (direction: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setIsResizing(true);
+        setGhostSize(size);
+        setGhostPosition(position);
+        onFocus(id);
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startWidth = size.width;
+        const startHeight = size.height;
+        const startPosX = position.x;
+        const startPosY = position.y;
+
+        const currentState = {
+            width: startWidth,
+            height: startHeight,
+            x: startPosX,
+            y: startPosY
+        };
+
+        const handleResize = (re: MouseEvent) => {
+            const dx = re.clientX - startX;
+            const dy = re.clientY - startY;
+
+            let newWidth = startWidth;
+            let newHeight = startHeight;
+            let newX = startPosX;
+            let newY = startPosY;
+
+            if (direction.includes('right')) {
+                newWidth = Math.max(300, startWidth + dx);
+            }
+            if (direction.includes('left')) {
+                newWidth = Math.max(300, startWidth - dx);
+                if (newWidth > 300) {
+                    newX = startPosX + dx;
+                } else {
+                    newX = startPosX + (startWidth - 300);
+                }
+            }
+            if (direction.includes('bottom')) {
+                newHeight = Math.max(200, startHeight + dy);
+            }
+            if (direction.includes('top')) {
+                newHeight = Math.max(200, startHeight - dy);
+                if (newHeight > 200) {
+                    newY = startPosY + dy;
+                } else {
+                    newY = startPosY + (startHeight - 200);
+                }
+            }
+
+            currentState.width = newWidth;
+            currentState.height = newHeight;
+            currentState.x = newX;
+            currentState.y = newY;
+
+            setGhostSize({ width: newWidth, height: newHeight });
+            setGhostPosition({ x: newX, y: newY });
+        };
+
+        const stopResize = () => {
+            window.removeEventListener('mousemove', handleResize);
+            window.removeEventListener('mouseup', stopResize);
+            setIsResizing(false);
+            setSize({ width: currentState.width, height: currentState.height });
+            setPosition({ x: currentState.x, y: currentState.y });
+        };
+
+        window.addEventListener('mousemove', handleResize);
+        window.addEventListener('mouseup', stopResize);
+    };
+
     const windowStyles = isMaximized
         ? {
             left: 0,
@@ -141,6 +217,17 @@ export function TerminalWindow({
             height: isMinimized ? 'auto' : size.height,
             zIndex: zIndex,
         };
+
+    const resizeHandles = [
+        { dir: 'top', cursor: 'ns-resize', className: 'h-2 top-0 left-0 right-0' },
+        { dir: 'bottom', cursor: 'ns-resize', className: 'h-2 bottom-0 left-0 right-0' },
+        { dir: 'left', cursor: 'ew-resize', className: 'w-2 top-0 bottom-0 left-0' },
+        { dir: 'right', cursor: 'ew-resize', className: 'w-2 top-0 bottom-0 right-0' },
+        { dir: 'top-left', cursor: 'nwse-resize', className: 'w-3 h-3 top-0 left-0 z-10' },
+        { dir: 'top-right', cursor: 'nesw-resize', className: 'w-3 h-3 top-0 right-0 z-10' },
+        { dir: 'bottom-left', cursor: 'nesw-resize', className: 'w-3 h-3 bottom-0 left-0 z-10' },
+        { dir: 'bottom-right', cursor: 'nwse-resize', className: 'w-3 h-3 bottom-0 right-0 z-10' },
+    ];
 
     return (
         <>
@@ -235,46 +322,15 @@ export function TerminalWindow({
                     {children}
                 </div>
 
-                {/* Resize Handle */}
-                {!isMaximized && !isMinimized && (
+                {/* Invisible Resize Handles - Rendered last to be on top of everything */}
+                {!isMaximized && !isMinimized && resizeHandles.map(handle => (
                     <div
-                        className="absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize select-none flex items-end justify-end p-0.5"
-                        onMouseDown={(e) => {
-                            e.stopPropagation();
-                            setIsResizing(true);
-                            setGhostSize(size);
-                            const startX = e.clientX;
-                            const startY = e.clientY;
-                            const startWidth = size.width;
-                            const startHeight = size.height;
-
-                            const currentGhostRef = { width: startWidth, height: startHeight };
-
-                            const handleResize = (re: MouseEvent) => {
-                                const newWidth = Math.max(300, startWidth + (re.clientX - startX));
-                                const newHeight = Math.max(200, startHeight + (re.clientY - startY));
-                                currentGhostRef.width = newWidth;
-                                currentGhostRef.height = newHeight;
-                                setGhostSize({ width: newWidth, height: newHeight });
-                            };
-
-                            const stopResize = () => {
-                                window.removeEventListener('mousemove', handleResize);
-                                window.removeEventListener('mouseup', stopResize);
-                                setIsResizing(false);
-                                // Apply the final dimensions from the ghost
-                                setSize({ width: currentGhostRef.width, height: currentGhostRef.height });
-                            };
-
-                            window.addEventListener('mousemove', handleResize);
-                            window.addEventListener('mouseup', stopResize);
-                        }}
-                    >
-                        <svg className="w-4 h-4 text-border-strong opacity-40 hover:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M22 22L12 22L22 12L22 22Z" />
-                        </svg>
-                    </div>
-                )}
+                        key={handle.dir}
+                        className={`absolute ${handle.className} select-none z-[100]`}
+                        style={{ cursor: handle.cursor }}
+                        onMouseDown={(e) => handleResizeStart(handle.dir, e)}
+                    />
+                ))}
             </div>
 
             {/* Ghost Resize Indicator */}
@@ -282,8 +338,8 @@ export function TerminalWindow({
                 <div
                     className="absolute pointer-events-none border-2 border-accent-primary z-[99999]"
                     style={{
-                        left: position.x,
-                        top: position.y,
+                        left: ghostPosition.x,
+                        top: ghostPosition.y,
                         width: ghostSize.width,
                         height: ghostSize.height,
                         backgroundColor: 'rgba(0, 0, 0, 0.4)',

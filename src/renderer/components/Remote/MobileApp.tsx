@@ -22,6 +22,7 @@ export function MobileApp() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isShortcutsMenuOpen, setIsShortcutsMenuOpen] = useState(false);
     const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
+    const [isImageMenuOpen, setIsImageMenuOpen] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const socketRef = useRef<WebSocket | null>(null);
     const [keyboardOffset, setKeyboardOffset] = useState(0);
@@ -141,10 +142,25 @@ export function MobileApp() {
     }, []);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const galleryInputRef = useRef<HTMLInputElement>(null);
     const [isProcessingImage, setIsProcessingImage] = useState(false);
 
     const handleAddImage = () => {
+        setIsImageMenuOpen(!isImageMenuOpen);
+        if (!isImageMenuOpen) {
+            setIsShortcutsMenuOpen(false);
+            setIsNavMenuOpen(false);
+        }
+    };
+
+    const handleTakePhoto = () => {
         fileInputRef.current?.click();
+        setIsImageMenuOpen(false);
+    };
+
+    const handleOpenGallery = () => {
+        galleryInputRef.current?.click();
+        setIsImageMenuOpen(false);
     };
 
     const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -399,13 +415,35 @@ export function MobileApp() {
                         </div>
                     )}
 
+                    {/* Image Selection Menu */}
+                    {isImageMenuOpen && (
+                        <div className="flex flex-col gap-2 pointer-events-auto animate-in slide-in-from-bottom-4 duration-200 mb-1">
+                            <div className="flex flex-col gap-1">
+                                <button
+                                    onClick={handleTakePhoto}
+                                    className="px-4 py-3 bg-[#161b22] border border-border rounded shadow-xl text-[13px] text-fg-primary active:bg-accent-primary transition-colors flex items-center gap-3"
+                                >
+                                    <ImageIcon size={18} className="opacity-70" />
+                                    <span className="font-bold">Take Photo</span>
+                                </button>
+                                <button
+                                    onClick={handleOpenGallery}
+                                    className="px-4 py-3 bg-[#161b22] border border-border rounded shadow-xl text-[13px] text-fg-primary active:bg-accent-primary transition-colors flex items-center gap-3"
+                                >
+                                    <Plus size={18} className="opacity-70" />
+                                    <span className="font-bold">From Gallery</span>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Persistent Control Toggles - FAB style */}
                     <div className="flex gap-2 pointer-events-auto">
                         <button
                             onClick={handleAddImage}
-                            className={`w-12 h-12 rounded-full flex items-center justify-center shadow-2xl transition-all bg-[#161b22] text-fg-muted`}
+                            className={`w-12 h-12 rounded-full flex items-center justify-center shadow-2xl transition-all ${isImageMenuOpen ? 'bg-accent-primary text-white scale-110' : 'bg-[#161b22] text-fg-muted'}`}
                         >
-                            <ImageIcon size={20} className={isProcessingImage ? 'animate-pulse' : 'opacity-50'} />
+                            <ImageIcon size={20} className={isProcessingImage ? 'animate-pulse' : (isImageMenuOpen ? 'opacity-100' : 'opacity-50')} />
                         </button>
                         <input
                             ref={fileInputRef}
@@ -415,10 +453,20 @@ export function MobileApp() {
                             className="hidden"
                             onChange={onFileChange}
                         />
+                        <input
+                            ref={galleryInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={onFileChange}
+                        />
                         <button
                             onClick={() => {
                                 setIsShortcutsMenuOpen(!isShortcutsMenuOpen);
-                                if (!isShortcutsMenuOpen) setIsNavMenuOpen(false);
+                                if (!isShortcutsMenuOpen) {
+                                    setIsNavMenuOpen(false);
+                                    setIsImageMenuOpen(false);
+                                }
                             }}
                             className={`w-12 h-12 rounded-full flex items-center justify-center shadow-2xl transition-all ${isShortcutsMenuOpen ? 'bg-accent-primary text-white scale-110' : 'bg-[#161b22] text-fg-muted'}`}
                         >
@@ -427,7 +475,10 @@ export function MobileApp() {
                         <button
                             onClick={() => {
                                 setIsNavMenuOpen(!isNavMenuOpen);
-                                if (!isNavMenuOpen) setIsShortcutsMenuOpen(false);
+                                if (!isNavMenuOpen) {
+                                    setIsShortcutsMenuOpen(false);
+                                    setIsImageMenuOpen(false);
+                                }
                             }}
                             className={`w-12 h-12 rounded-full flex items-center justify-center shadow-2xl transition-all ${isNavMenuOpen ? 'bg-accent-primary text-white scale-110' : 'bg-[#161b22] text-fg-muted'}`}
                         >
