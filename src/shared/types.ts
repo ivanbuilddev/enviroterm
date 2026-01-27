@@ -51,6 +51,7 @@ export interface ElectronAPI {
     create: (directoryId: string, name?: string) => Promise<Session>;
     rename: (id: string, name: string) => Promise<void>;
     delete: (id: string) => Promise<void>;
+    onCreated: (callback: (session: Session) => void) => () => void;
   };
   terminal: {
     spawn: (sessionId: string, folderPath: string, sessionName?: string, initialCommand?: string) => Promise<boolean>;
@@ -72,6 +73,7 @@ export interface ElectronAPI {
   remote: {
     getDetails: () => Promise<{ port: number; ips: string[]; rendererUrl: string }>;
     generateToken: (directoryId: string) => Promise<string>;
+    broadcastSettings: (directoryId: string) => void;
   };
   settings: {
     get: (directoryId?: string) => Promise<any>;

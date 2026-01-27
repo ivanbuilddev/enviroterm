@@ -34,4 +34,8 @@ export function registerTerminalHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle('remote:generateToken', (_, directoryId: string) => {
     return remoteService.generateToken(directoryId);
   });
+
+  ipcMain.on('remote:broadcastSettings', (_, directoryId: string) => {
+    remoteService.broadcastSettings(directoryId);
+  });
 }

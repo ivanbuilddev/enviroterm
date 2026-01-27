@@ -11,6 +11,7 @@ export interface KeyboardShortcut {
 interface GlobalSettings {
   initialCommand: string;
   keyboardShortcuts: KeyboardShortcut[];
+  imageShortcut: string[];
 }
 
 interface WorkspaceSettings {
@@ -19,7 +20,8 @@ interface WorkspaceSettings {
 
 const globalStore = new JsonStore<GlobalSettings>('global_settings.json', {
   initialCommand: 'claude',
-  keyboardShortcuts: []
+  keyboardShortcuts: [],
+  imageShortcut: ['Alt', 'V']
 });
 
 const workspaceStore = new JsonStore<WorkspaceSettings>('workspace_settings.json', {
@@ -50,9 +52,15 @@ export const SettingsStore = {
       ? workspaceOverride.keyboardShortcuts
       : global.keyboardShortcuts;
 
+    // Image shortcut: follow workspace override if defined, else global
+    const imageShortcut = workspaceOverride.imageShortcut !== undefined
+      ? workspaceOverride.imageShortcut
+      : (global.imageShortcut || ['Alt', 'V']);
+
     return {
       initialCommand,
       keyboardShortcuts,
+      imageShortcut,
       workspaceOverrides: overrides
     };
   },
@@ -65,6 +73,9 @@ export const SettingsStore = {
       if (settings.keyboardShortcuts !== undefined) {
         globalStore.set('keyboardShortcuts', settings.keyboardShortcuts);
       }
+      if (settings.imageShortcut !== undefined) {
+        globalStore.set('imageShortcut', settings.imageShortcut);
+      }
     } else {
       const overrides = workspaceStore.get('overrides');
       const currentOverride = overrides[directoryId] || {};
@@ -72,7 +83,8 @@ export const SettingsStore = {
       overrides[directoryId] = {
         ...currentOverride,
         ...(settings.initialCommand !== undefined && { initialCommand: settings.initialCommand }),
-        ...(settings.keyboardShortcuts !== undefined && { keyboardShortcuts: settings.keyboardShortcuts })
+        ...(settings.keyboardShortcuts !== undefined && { keyboardShortcuts: settings.keyboardShortcuts }),
+        ...(settings.imageShortcut !== undefined && { imageShortcut: settings.imageShortcut })
       };
 
       workspaceStore.set('overrides', overrides);

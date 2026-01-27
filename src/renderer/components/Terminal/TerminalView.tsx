@@ -210,26 +210,51 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
   useEffect(() => {
     if (!term || !isOpened) return;
 
-    const handleImagePaste = async (imageData: any) => {
-      console.log('[TerminalView] handleImagePaste called with:', { name: imageData?.name, type: imageData?.type, hasBase64: !!imageData?.base64 });
+    // Convert shortcut keys array to terminal escape sequence
+    const keysToEscapeSequence = (keys: string[]): string => {
+      // Build the escape sequence based on modifiers and key
+      const hasAlt = keys.includes('Alt');
+      const hasCtrl = keys.includes('Ctrl');
+      const hasShift = keys.includes('Shift');
+      const mainKey = keys.find(k => !['Alt', 'Ctrl', 'Shift', 'Meta'].includes(k))?.toLowerCase() || 'v';
+
+      if (hasAlt && !hasCtrl) {
+        // Alt + key is ESC followed by the key
+        return `\x1b${mainKey}`;
+      } else if (hasCtrl && !hasAlt) {
+        // Ctrl + key is the control character
+        const charCode = mainKey.toUpperCase().charCodeAt(0);
+        if (charCode >= 65 && charCode <= 90) {
+          return String.fromCharCode(charCode - 64);
+        }
+      } else if (hasCtrl && hasAlt) {
+        // Ctrl+Alt+key
+        return `\x1b${String.fromCharCode(mainKey.toUpperCase().charCodeAt(0) - 64)}`;
+      }
+      // Default to Alt+V
+      return '\x1bv';
+    };
+
+    const handleImagePaste = async (imageData: any, imageShortcut?: string[]) => {
+      console.log('[TerminalView] handleImagePaste called with:', { name: imageData?.name, type: imageData?.type, hasBase64: !!imageData?.base64, imageShortcut });
       const { name, type, base64 } = imageData;
       try {
         // Focus the terminal first
         term.focus();
 
         // For images, use Electron's clipboard API to write the image
-        // Then simulate Alt+V which is Claude CLI's paste command
+        // Then simulate the configured shortcut (default Alt+V) which is Claude CLI's paste command
         if (type.startsWith('image/') && window.electronAPI.clipboard?.writeImage) {
           const success = await window.electronAPI.clipboard.writeImage(base64);
           if (success) {
-            console.log('[TerminalView] Image written to clipboard, triggering Alt+V paste');
+            const shortcutKeys = imageShortcut || ['Alt', 'V'];
+            const escapeSequence = keysToEscapeSequence(shortcutKeys);
+            console.log('[TerminalView] Image written to clipboard, triggering shortcut:', shortcutKeys.join('+'), 'escape sequence:', escapeSequence);
 
-            // Send Alt+V keystroke to the terminal (Claude CLI paste command)
-            // We need to write the escape sequence for Alt+V to the PTY
-            // Alt+V in terminal is typically sent as ESC followed by 'v' or as \x1bv
-            window.electronAPI.terminal.write(sessionId, '\x1bv');
+            // Send the shortcut keystroke to the terminal
+            window.electronAPI.terminal.write(sessionId, escapeSequence);
 
-            console.log('[TerminalView] Sent Alt+V (\\x1bv) to terminal');
+            console.log('[TerminalView] Sent shortcut to terminal');
             return;
           }
         }
@@ -263,9 +288,9 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
     };
 
     const unsubPaste = window.electronAPI.terminal.onRemotePaste((data: any) => {
-      console.log('[TerminalView] onRemotePaste received:', { sessionId: data.sessionId, mySessionId: sessionId });
+      console.log('[TerminalView] onRemotePaste received:', { sessionId: data.sessionId, mySessionId: sessionId, imageShortcut: data.imageShortcut });
       if (data.sessionId === sessionId) {
-        handleImagePaste(data.data);
+        handleImagePaste(data.data, data.imageShortcut);
       }
     });
 

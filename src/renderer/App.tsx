@@ -188,7 +188,7 @@ function App() {
         <span>
           {directories.length} Directories | {sessions.length} Active Sessions
         </span>
-        <span>EnviroTerm v1.0</span>
+        <span>EnviroTerm</span>
       </footer>
     </div>
   )

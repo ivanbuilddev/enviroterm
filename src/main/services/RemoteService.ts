@@ -132,13 +132,42 @@ class RemoteService {
                         console.log('[Remote] Paste received for session:', payload.sessionId, 'data keys:', Object.keys(payload.data || {}));
                         const mainWindow = BrowserWindow.getAllWindows()[0];
                         if (mainWindow) {
-                            console.log('[Remote] Sending paste to renderer');
+                            // Get the image shortcut from settings for this directory
+                            const settings = SettingsStore.getAll(directoryId);
+                            const imageShortcut = settings.imageShortcut || ['Alt', 'V'];
+
+                            console.log('[Remote] Sending paste to renderer with imageShortcut:', imageShortcut);
                             mainWindow.webContents.send('terminal:remote-paste', {
                                 sessionId: payload.sessionId,
-                                data: payload.data
+                                data: payload.data,
+                                imageShortcut
                             });
                         } else {
                             console.warn('[Remote] No main window found for paste');
+                        }
+                    } else if (payload.type === 'createSession' && payload.directoryId) {
+                        const directory = WorkspaceStore.getDirectoryById(payload.directoryId);
+                        if (!directory) {
+                            ws.send(JSON.stringify({ type: 'createSessionError', error: 'Directory not found' }));
+                            return;
+                        }
+
+                        const sessionName = payload.name || `Terminal ${WorkspaceStore.getSessionsByDirectory(payload.directoryId).length + 1}`;
+                        const newSession = WorkspaceStore.createSession(payload.directoryId, sessionName);
+
+                        const initialCommand = SettingsStore.getInitialCommand(payload.directoryId);
+                        terminalService.spawn(newSession.id, directory.path, sessionName, initialCommand);
+
+                        // Notify mobile client
+                        ws.send(JSON.stringify({ type: 'sessionCreated', session: newSession }));
+
+                        const sessions = WorkspaceStore.getSessionsByDirectory(payload.directoryId);
+                        ws.send(JSON.stringify({ type: 'sessions', sessions }));
+
+                        // Notify desktop app to update its UI
+                        const mainWindow = BrowserWindow.getAllWindows()[0];
+                        if (mainWindow) {
+                            mainWindow.webContents.send('sessions:created', newSession);
                         }
                     }
                 } catch (e) {
@@ -195,6 +224,16 @@ class RemoteService {
         const message = JSON.stringify({ type: 'data', sessionId, data });
         for (const conn of this.connections) {
             conn.socket.send(message);
+        }
+    }
+
+    public broadcastSettings(directoryId: string): void {
+        const settings = SettingsStore.getAll(directoryId);
+        const message = JSON.stringify({ type: 'settings', settings });
+        for (const conn of this.connections) {
+            if (conn.directoryId === directoryId) {
+                conn.socket.send(message);
+            }
         }
     }
 

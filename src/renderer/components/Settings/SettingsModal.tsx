@@ -10,6 +10,7 @@ interface KeyboardShortcut {
 interface Settings {
     initialCommand: string;
     keyboardShortcuts: KeyboardShortcut[];
+    imageShortcut: string[];
 }
 
 interface SettingsModalProps {
@@ -21,7 +22,8 @@ interface SettingsModalProps {
 export function SettingsModal({ onClose, directoryId, workspaceName }: SettingsModalProps) {
     const [settings, setSettings] = useState<Settings>({
         initialCommand: 'claude',
-        keyboardShortcuts: []
+        keyboardShortcuts: [],
+        imageShortcut: ['Alt', 'V']
     });
     const [isLoading, setIsLoading] = useState(true);
     const [recordingId, setRecordingId] = useState<string | null>(null);
@@ -53,11 +55,6 @@ export function SettingsModal({ onClose, directoryId, workspaceName }: SettingsM
                 return;
             }
 
-            const activeShortcut = settings.keyboardShortcuts.find(s => s.id === recordingId);
-            if (!activeShortcut) return;
-
-            const newKeys = [...activeShortcut.keys];
-
             // Map common modifier keys to their display names
             const modifiers: Record<string, string> = {
                 'Control': 'Ctrl',
@@ -70,6 +67,22 @@ export function SettingsModal({ onClose, directoryId, workspaceName }: SettingsM
             if (keyToAdd === ' ') keyToAdd = 'Space';
             if (keyToAdd.length === 1) keyToAdd = keyToAdd.toUpperCase();
 
+            // Handle image shortcut recording
+            if (recordingId === 'image-shortcut') {
+                const newKeys = [...settings.imageShortcut];
+                if (!newKeys.includes(keyToAdd)) {
+                    newKeys.push(keyToAdd);
+                    setSettings(prev => ({ ...prev, imageShortcut: newKeys }));
+                }
+                return;
+            }
+
+            // Handle regular shortcuts
+            const activeShortcut = settings.keyboardShortcuts.find(s => s.id === recordingId);
+            if (!activeShortcut) return;
+
+            const newKeys = [...activeShortcut.keys];
+
             // Only add if not already in the sequence (to avoid repeats from holding down)
             if (!newKeys.includes(keyToAdd)) {
                 newKeys.push(keyToAdd);
@@ -79,11 +92,15 @@ export function SettingsModal({ onClose, directoryId, workspaceName }: SettingsM
 
         window.addEventListener('keydown', handleKeyDown, true);
         return () => window.removeEventListener('keydown', handleKeyDown, true);
-    }, [recordingId, settings.keyboardShortcuts]);
+    }, [recordingId, settings.keyboardShortcuts, settings.imageShortcut]);
 
     const handleSave = async () => {
         try {
             await window.electronAPI.settings.set(settings, directoryId);
+            // Broadcast settings to connected mobile devices
+            if (directoryId) {
+                window.electronAPI.remote.broadcastSettings(directoryId);
+            }
             onClose();
         } catch (err) {
             console.error('Failed to save settings:', err);
@@ -119,17 +136,20 @@ export function SettingsModal({ onClose, directoryId, workspaceName }: SettingsM
     };
 
     const startRecording = (id: string) => {
-        updateShortcut(id, { keys: [] });
+        if (id === 'image-shortcut') {
+            setSettings(prev => ({ ...prev, imageShortcut: [] }));
+        } else {
+            updateShortcut(id, { keys: [] });
+        }
         setRecordingId(id);
     };
 
     if (isLoading) return null;
 
     return (
-        <div className="fixed inset-0 z-[6000] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
+        <div className="fixed inset-0 z-[6000] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div
                 className="bg-bg-surface border border-border-strong w-[650px] h-[650px] flex flex-col shadow-2xl relative overflow-hidden"
-                onClick={e => e.stopPropagation()}
             >
                 {/* Header decor */}
                 <div className="h-1 bg-gradient-to-r from-accent-primary via-accent-secondary to-accent-primary shrink-0" />
@@ -173,7 +193,7 @@ export function SettingsModal({ onClose, directoryId, workspaceName }: SettingsM
                             <div className="flex items-center justify-between mb-3 shrink-0">
                                 <h3 className="text-[10px] text-fg-muted uppercase tracking-wider font-bold flex items-center gap-2">
                                     <Keyboard size={14} />
-                                    Key Combinations
+                                    Remote Key Combinations
                                 </h3>
                                 <button
                                     onClick={addShortcut}
@@ -184,6 +204,32 @@ export function SettingsModal({ onClose, directoryId, workspaceName }: SettingsM
                             </div>
 
                             <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar space-y-2 bg-bg-elevated/10 p-2 rounded-lg border border-border/50">
+                                {/* System shortcut - Send Image - always present, not deletable but recordable */}
+                                <div className={`p-2 bg-bg-base/50 border rounded flex items-center gap-3 transition-all ${recordingId === 'image-shortcut' ? 'border-accent-primary ring-1 ring-accent-primary' : 'border-border/50'}`}>
+                                    <span className="text-fg-muted text-[12px] font-medium w-36 truncate">Send Image</span>
+                                    <div className="flex-1 flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            value={settings.imageShortcut.join(' + ')}
+                                            className={`flex-1 bg-bg-surface border border-border text-fg-muted text-[11px] px-2 py-1 rounded outline-none transition-colors ${recordingId === 'image-shortcut' ? 'bg-accent-primary/5 text-accent-primary border-accent-primary' : ''}`}
+                                            placeholder={recordingId === 'image-shortcut' ? 'Press keys...' : 'e.g. Alt + V'}
+                                            readOnly
+                                        />
+                                        <button
+                                            onClick={() => recordingId === 'image-shortcut' ? setRecordingId(null) : startRecording('image-shortcut')}
+                                            className={`p-1.5 rounded transition-all flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-bold ${recordingId === 'image-shortcut'
+                                                ? 'bg-status-error text-white animate-pulse'
+                                                : 'bg-bg-surface border border-border text-fg-muted hover:text-accent-primary hover:border-accent-primary'
+                                                }`}
+                                            title={recordingId === 'image-shortcut' ? 'Stop Recording' : 'Record Shortcut'}
+                                        >
+                                            <div className={`w-2 h-2 rounded-full ${recordingId === 'image-shortcut' ? 'bg-white' : 'bg-status-error'}`} />
+                                            {recordingId === 'image-shortcut' ? 'Stop' : 'Record'}
+                                        </button>
+                                    </div>
+                                    <div className="w-[14px]" />
+                                </div>
+
                                 {settings.keyboardShortcuts.length === 0 ? (
                                     <p className="text-[12px] text-fg-faint italic text-center py-4 bg-bg-elevated/30 border border-dashed border-border rounded">No custom shortcuts defined yet.</p>
                                 ) : (

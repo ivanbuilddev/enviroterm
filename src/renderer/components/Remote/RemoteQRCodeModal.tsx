@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { X, Smartphone, Wifi, ShieldCheck } from 'lucide-react';
+import { X, Smartphone, Wifi, ShieldCheck, ChevronDown } from 'lucide-react';
 
 interface RemoteQRCodeModalProps {
     directoryId: string;
@@ -68,7 +68,7 @@ export function RemoteQRCodeModal({ directoryId, directoryPath, onClose }: Remot
 
                 <div className="p-8 flex flex-col items-center">
                     <div className="mb-6 flex flex-col items-center text-center">
-                        <div className="w-12 h-12 rounded-full bg-accent-primary/10 flex items-center justify-center text-accent-primary mb-4">
+                        <div className="w-12 h-12 bg-accent-primary/10 flex items-center justify-center text-accent-primary mb-4">
                             <Smartphone size={24} />
                         </div>
                         <h2 className="text-lg font-header text-fg-primary mb-1">Send to Phone</h2>
@@ -78,25 +78,28 @@ export function RemoteQRCodeModal({ directoryId, directoryPath, onClose }: Remot
                         </p>
                     </div>
 
-                    <div className="p-4 bg-white rounded-lg shadow-inner mb-4">
-                        <QRCodeSVG value={url} size={200} level="H" includeMargin />
+                    <div className="p-4 bg-white shadow-inner mb-4">
+                        <QRCodeSVG value={url} size={200} level="H" />
                     </div>
 
                     <div className="w-full mb-6">
                         <p className="text-[10px] text-fg-muted uppercase tracking-wider font-bold mb-2 ml-1 text-center font-header">Select Network Interface</p>
-                        <select
-                            value={selectedIp}
-                            onChange={(e) => setSelectedIp(e.target.value)}
-                            className="w-full bg-bg-elevated border border-border text-fg-primary text-[12px] px-3 py-2 rounded-lg outline-none focus:border-accent-primary transition-colors cursor-pointer"
-                        >
-                            {details.ips.map(ip => (
-                                <option key={ip} value={ip}>{ip}</option>
-                            ))}
-                        </select>
+                        <div className="relative">
+                            <select
+                                value={selectedIp}
+                                onChange={(e) => setSelectedIp(e.target.value)}
+                                className="w-full bg-bg-elevated border border-border text-fg-primary text-[12px] pl-3 pr-10 py-2 outline-none hover:bg-bg-hover hover:border-border-strong focus:border-accent-primary transition-colors cursor-pointer appearance-none"
+                            >
+                                {details.ips.map(ip => (
+                                    <option key={ip} value={ip}>{ip}</option>
+                                ))}
+                            </select>
+                            <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-muted pointer-events-none" />
+                        </div>
                     </div>
 
                     <div className="w-full space-y-3">
-                        <div className="flex items-center gap-3 px-4 py-3 bg-bg-elevated/50 border border-border rounded-lg">
+                        <div className="flex items-center gap-3 px-4 py-3 bg-bg-elevated/50 border border-border">
                             <Wifi size={16} className="text-accent-primary" />
                             <div className="flex-1">
                                 <p className="text-[10px] text-fg-muted uppercase tracking-wider font-bold">Network</p>
@@ -104,7 +107,7 @@ export function RemoteQRCodeModal({ directoryId, directoryPath, onClose }: Remot
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-3 px-4 py-3 bg-bg-elevated/50 border border-border rounded-lg">
+                        <div className="flex items-center gap-3 px-4 py-3 bg-bg-elevated/50 border border-border">
                             <ShieldCheck size={16} className="text-status-success" />
                             <div className="flex-1">
                                 <p className="text-[10px] text-fg-muted uppercase tracking-wider font-bold">Security</p>

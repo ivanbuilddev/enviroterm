@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Menu, ChevronLeft, Image as ImageIcon, Keyboard, Move, ChevronDown } from 'lucide-react';
+import { Menu, ChevronLeft, Image as ImageIcon, Keyboard, Move, ChevronDown, Plus } from 'lucide-react';
 import { TerminalView } from '../Terminal/TerminalView';
 import { Session } from '../../../shared/types';
 
@@ -25,6 +25,7 @@ export function MobileApp() {
     const [error, setError] = useState<string | null>(null);
     const socketRef = useRef<WebSocket | null>(null);
     const [keyboardOffset, setKeyboardOffset] = useState(0);
+    const [isCreatingSession, setIsCreatingSession] = useState(false);
 
     const handleExecuteShortcut = (keys: string[]) => {
         if (!activeSessionId) return;
@@ -83,6 +84,18 @@ export function MobileApp() {
         if (sequence && (window as any).electronAPI) {
             (window as any).electronAPI.terminal.write(activeSessionId, sequence);
         }
+    };
+
+    const handleCreateSession = () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const directoryId = urlParams.get('directoryId');
+
+        if (!directoryId || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
+            return;
+        }
+
+        setIsCreatingSession(true);
+        socketRef.current.send(JSON.stringify({ type: 'createSession', directoryId }));
     };
 
     // Keyboard detection logic
@@ -249,6 +262,17 @@ export function MobileApp() {
                             setActiveSessionId(data.sessions[0].id);
                         }
                     }
+                } else if (data.type === 'sessionCreated') {
+                    if (isActive) {
+                        setIsCreatingSession(false);
+                        setActiveSessionId(data.session.id);
+                        setIsSidebarOpen(false);
+                    }
+                } else if (data.type === 'createSessionError') {
+                    if (isActive) {
+                        setIsCreatingSession(false);
+                        setError(data.error || 'Failed to create session');
+                    }
                 }
             } catch (e) {
                 console.error('[MobileApp] Failed to parse message:', e);
@@ -327,9 +351,10 @@ export function MobileApp() {
                                     <button
                                         key={shortcut.id}
                                         onClick={() => handleExecuteShortcut(shortcut.keys)}
-                                        className="px-4 py-2 bg-[#161b22] border border-border rounded shadow-xl text-[12px] font-bold text-fg-primary active:bg-accent-primary transition-colors whitespace-nowrap"
+                                        className="px-4 py-2 bg-[#161b22] border border-border rounded shadow-xl text-[12px] text-fg-primary active:bg-accent-primary transition-colors whitespace-nowrap flex items-center justify-between gap-3"
                                     >
-                                        {shortcut.name}
+                                        <span className="font-bold">{shortcut.name}</span>
+                                        <span className="text-[10px] text-fg-muted font-mono">{shortcut.keys.join('+')}</span>
                                     </button>
                                 ))}
                                 {(!settings?.keyboardShortcuts || settings.keyboardShortcuts.length === 0) && (
@@ -419,9 +444,19 @@ export function MobileApp() {
                     <div className="relative w-72 bg-bg-surface h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-200">
                         <div className="p-4 border-b border-border flex items-center justify-between">
                             <span className="text-[11px] font-bold text-fg-muted uppercase tracking-widest">Sessions</span>
-                            <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-bg-hover text-fg-muted">
-                                <ChevronLeft size={20} />
-                            </button>
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={handleCreateSession}
+                                    disabled={isCreatingSession}
+                                    className="p-1 hover:bg-bg-hover text-fg-muted disabled:opacity-50"
+                                    title="New Session"
+                                >
+                                    <Plus size={20} className={isCreatingSession ? 'animate-pulse' : ''} />
+                                </button>
+                                <button onClick={() => setIsSidebarOpen(false)} className="p-1 hover:bg-bg-hover text-fg-muted">
+                                    <ChevronLeft size={20} />
+                                </button>
+                            </div>
                         </div>
                         <div className="flex-1 overflow-y-auto p-2 space-y-1">
                             {sessions.map(session => (

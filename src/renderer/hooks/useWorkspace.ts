@@ -67,6 +67,21 @@ export function useWorkspace(): UseWorkspaceReturn {
     loadSessions();
   }, [activeDirectoryId]);
 
+  // Listen for sessions created remotely (from phone)
+  useEffect(() => {
+    const unsubscribe = window.electronAPI.sessions.onCreated((session) => {
+      // Only add if it belongs to the active directory
+      if (session.directoryId === activeDirectoryId) {
+        setSessions(prev => {
+          // Avoid duplicates
+          if (prev.some(s => s.id === session.id)) return prev;
+          return [...prev, session];
+        });
+      }
+    });
+    return unsubscribe;
+  }, [activeDirectoryId]);
+
   // --- DIRECTORY METHODS ---
 
   const createDirectory = useCallback(async () => {

@@ -18,6 +18,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     create: (directoryId: string, name?: string) => ipcRenderer.invoke('sessions:create', directoryId, name),
     rename: (id: string, name: string) => ipcRenderer.invoke('sessions:rename', id, name),
     delete: (id: string) => ipcRenderer.invoke('sessions:delete', id),
+    onCreated: (callback: (session: { id: string; directoryId: string; name: string; lastAccessedAt: number; createdAt: number }) => void) => {
+      const handler = (_event: IpcRendererEvent, session: { id: string; directoryId: string; name: string; lastAccessedAt: number; createdAt: number }) => callback(session);
+      ipcRenderer.on('sessions:created', handler);
+      return () => {
+        ipcRenderer.removeListener('sessions:created', handler);
+      };
+    },
   },
   terminal: {
     spawn: (sessionId: string, folderPath: string, sessionName?: string, initialCommand: string = '') =>
@@ -62,6 +69,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   remote: {
     getDetails: () => ipcRenderer.invoke('remote:getDetails'),
     generateToken: (directoryId: string) => ipcRenderer.invoke('remote:generateToken', directoryId),
+    broadcastSettings: (directoryId: string) => ipcRenderer.send('remote:broadcastSettings', directoryId),
   },
   settings: {
     get: (directoryId?: string) => ipcRenderer.invoke('settings:get', directoryId),

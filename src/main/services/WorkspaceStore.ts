@@ -34,6 +34,10 @@ export const WorkspaceStore = {
     return store.get('directories');
   },
 
+  getDirectoryById(id: string): Directory | undefined {
+    return store.get('directories').find(d => d.id === id);
+  },
+
   createDirectory(folderPath: string): Directory {
     const now = Date.now();
     const folderName = folderPath; // The name is the full path
