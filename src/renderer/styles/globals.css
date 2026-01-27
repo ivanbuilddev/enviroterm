@@ -206,12 +206,25 @@ body {
 /* Prevent horizontal scrolling in xterm - content should wrap, not scroll horizontally */
 .xterm-viewport {
   overflow-x: hidden !important;
+  overflow-y: auto !important;
   overscroll-behavior: none;
   touch-action: pan-y;
+  -webkit-overflow-scrolling: touch; /* iOS momentum scrolling for smoother touch scroll */
 }
 
 .xterm-screen {
   overflow-x: hidden !important;
+}
+
+/* Mobile terminal: disable mouse/touch interaction on terminal content
+   to prevent accidental cursor positioning when scrolling */
+.mobile-terminal .xterm-screen {
+  pointer-events: none;
+}
+
+/* But keep scrolling functional via the viewport */
+.mobile-terminal .xterm-viewport {
+  pointer-events: auto;
 }
 
 /* Sidebar Transition */

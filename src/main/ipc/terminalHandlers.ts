@@ -18,6 +18,8 @@ export function registerTerminalHandlers(mainWindow: BrowserWindow): void {
   // Resize a terminal
   ipcMain.on('terminal:resize', (_, sessionId: string, cols: number, rows: number) => {
     terminalService.resize(sessionId, cols, rows);
+    // Broadcast dimensions to mobile clients so they can update their scale
+    remoteService.broadcastDimensions(sessionId, cols, rows);
   });
 
   // Kill a terminal

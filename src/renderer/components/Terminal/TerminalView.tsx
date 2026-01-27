@@ -49,8 +49,8 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
   const [term, setTerm] = useState<Terminal | null>(null);
   const [isOpened, setIsOpened] = useState(false);
   const [scale, setScale] = useState(1);
-  const [pixelWidth, setPixelWidth] = useState(1000);
-  const [pixelHeight, setPixelHeight] = useState(1000);
+  const [pixelWidth, setPixelWidth] = useState(0);
+  const [pixelHeight, setPixelHeight] = useState(0);
   const spawnedRef = useRef(false);
 
   // 1. Initialize terminal instance on mount
@@ -109,11 +109,12 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
     }
   }, [term, isOpened, sessionId, isReadOnlyResize]);
 
-  // Handle scaling and pixel-perfect dimensions (Mobile only)
+  // Handle mobile scaling (Mobile only)
+  // Scales the terminal to fit phone screen based on desktop terminal width
   useEffect(() => {
     if (!isReadOnlyResize || !term || !containerRef.current || !isOpened) return;
 
-    const updateScaleAndPixels = () => {
+    const updateScaleToFitPhone = () => {
       const container = containerRef.current;
       const parent = container?.parentElement;
       if (!container || !parent) return;
@@ -123,31 +124,37 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
       const cellWidth = core._renderService?.dimensions?.css?.cell?.width;
       const cellHeight = core._renderService?.dimensions?.css?.cell?.height;
 
-      if (!cellWidth || term.cols === 0) return;
+      if (!cellWidth || !cellHeight || term.cols === 0) return;
 
-      // Force pixel dimensions to match the actual terminal layout
-      const calculatedWidth = term.cols * cellWidth;
-      const calculatedHeight = term.rows * cellHeight;
-      setPixelWidth(calculatedWidth);
-      setPixelHeight(calculatedHeight);
+      // Calculate terminal's actual pixel dimensions based on desktop cols/rows
+      const terminalPixelWidth = term.cols * cellWidth;
+      const terminalPixelHeight = term.rows * cellHeight;
 
-      // Scale to fit the mobile screen width
-      const availableWidth = parent.clientWidth - 16; // 16px padding
-      if (calculatedWidth > availableWidth) {
-        setScale(availableWidth / calculatedWidth);
+      setPixelWidth(terminalPixelWidth);
+      setPixelHeight(terminalPixelHeight);
+
+      // Get available phone screen width (minus padding)
+      const availableWidth = parent.clientWidth - 16;
+
+      // Scale to fit: larger desktop terminal = smaller scale on phone
+      if (terminalPixelWidth > availableWidth) {
+        setScale(availableWidth / terminalPixelWidth);
       } else {
         setScale(1);
       }
     };
 
-    const resizeObserver = new ResizeObserver(updateScaleAndPixels);
+    // Recalculate when phone screen changes (rotation)
+    const resizeObserver = new ResizeObserver(updateScaleToFitPhone);
     resizeObserver.observe(containerRef.current.parentElement!);
 
-    // Also listen for remote dimension updates
+    // When desktop terminal dimensions change, resize and recalculate scale
     const handleRemoteDimensions = (event: any) => {
       if (event.detail.sessionId === sessionId) {
+        // Resize terminal to match desktop dimensions
         term.resize(event.detail.cols, event.detail.rows);
-        updateScaleAndPixels();
+        // Then recalculate scale to fit phone screen
+        updateScaleToFitPhone();
       }
     };
 
@@ -160,8 +167,8 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
     window.addEventListener('terminal:dimensions' as any, handleRemoteDimensions);
     window.addEventListener('terminal:reset' as any, handleReset);
 
-    // Initial calculation
-    setTimeout(updateScaleAndPixels, 200);
+    // Initial calculation after terminal is ready
+    setTimeout(updateScaleToFitPhone, 200);
 
     return () => {
       resizeObserver.disconnect();
@@ -326,17 +333,23 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
   }, [term, isOpened, sessionId, isReadOnlyResize]);
 
   return (
-    <div className="w-full h-full bg-[#0d1117] overflow-hidden relative p-2">
+    <div className={`w-full h-full bg-[#0d1117] overflow-hidden relative p-2 ${isReadOnlyResize ? 'mobile-terminal' : ''}`}>
       <div
         ref={containerRef}
-        className="overflow-hidden origin-top-left transition-transform duration-200"
-        style={{
+        className="overflow-hidden origin-top-left"
+        style={isReadOnlyResize ? {
+          // Mobile: scale terminal to fit phone screen
           transform: `scale(${scale})`,
-          width: isReadOnlyResize ? `${pixelWidth}px` : '100%',
-          height: isReadOnlyResize ? `${pixelHeight}px` : '100%',
-          position: isReadOnlyResize ? 'absolute' : 'relative',
+          width: pixelWidth > 0 ? `${pixelWidth}px` : '100%',
+          height: pixelHeight > 0 ? `${pixelHeight}px` : '100%',
+          position: 'absolute',
           top: 0,
-          left: isReadOnlyResize ? '8px' : 0
+          left: 8,
+        } : {
+          // Desktop: fill container
+          width: '100%',
+          height: '100%',
+          position: 'relative',
         }}
       />
     </div>

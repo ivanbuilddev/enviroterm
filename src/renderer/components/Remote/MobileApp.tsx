@@ -299,6 +299,11 @@ export function MobileApp() {
                         setIsCreatingSession(false);
                         setError(data.error || 'Failed to create session');
                     }
+                } else if (data.type === 'dimensions') {
+                    // Desktop terminal resized - update mobile terminal dimensions
+                    window.dispatchEvent(new CustomEvent('terminal:dimensions', {
+                        detail: { sessionId: data.sessionId, cols: data.cols, rows: data.rows }
+                    }));
                 }
             } catch (e) {
                 console.error('[MobileApp] Failed to parse message:', e);
