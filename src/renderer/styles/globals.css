@@ -151,8 +151,15 @@
 }
 */
 
+html,
 body {
   margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  position: fixed;
+  overflow: hidden;
+  overscroll-behavior: none;
   font-family: 'Source Code Pro', monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -199,6 +206,8 @@ body {
 /* Prevent horizontal scrolling in xterm - content should wrap, not scroll horizontally */
 .xterm-viewport {
   overflow-x: hidden !important;
+  overscroll-behavior: none;
+  touch-action: pan-y;
 }
 
 .xterm-screen {

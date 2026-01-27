@@ -25,8 +25,9 @@ export function MobileApp() {
     const [isImageMenuOpen, setIsImageMenuOpen] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const socketRef = useRef<WebSocket | null>(null);
-    const [keyboardOffset, setKeyboardOffset] = useState(0);
+
     const [isCreatingSession, setIsCreatingSession] = useState(false);
+    const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
 
     const handleExecuteShortcut = (keys: string[]) => {
         if (!activeSessionId) return;
@@ -99,16 +100,15 @@ export function MobileApp() {
         socketRef.current.send(JSON.stringify({ type: 'createSession', workspaceId }));
     };
 
-    // Keyboard detection logic
+    // Keyboard detection logic & Viewport Height
     useEffect(() => {
         const viewport = window.visualViewport;
         if (!viewport) return;
 
         const handleResize = () => {
-            // Calculate how much the viewport has shrunk (keyboard height)
-            const offset = window.innerHeight - viewport.height;
-            // Only set if offset is positive (keyboard is open)
-            setKeyboardOffset(offset > 0 ? offset : 0);
+            // Update the app height to match the visible viewport exactly
+            // This prevents the browser chrome from scrolling correctly
+            setViewportHeight(viewport.height);
         };
 
         viewport.addEventListener('resize', handleResize);
@@ -318,18 +318,21 @@ export function MobileApp() {
     const activeSession = sessions.find(s => s.id === activeSessionId);
 
     return (
-        <div className="fixed inset-0 bg-[#0d1117] text-fg-primary flex flex-col overflow-hidden select-none">
-            {/* Mobile Header - Ultra Simple */}
-            <header className="h-14 bg-[#161b22] border-b border-border flex items-center justify-between px-4 shrink-0 z-[100]">
-                <div className="flex items-center gap-3">
+        <div
+            className="fixed top-0 left-0 w-full bg-[#0d1117] text-fg-primary flex flex-col overflow-hidden select-none overscroll-y-none"
+            style={{ height: `${viewportHeight}px` }}
+        >
+            {/* Mobile Header - With Controls */}
+            <header className="h-14 bg-[#161b22] border-b border-border flex items-center justify-between px-3 shrink-0 z-[100] touch-none">
+                <div className="flex items-center gap-3 overflow-hidden">
                     <button
                         onClick={() => setIsSidebarOpen(true)}
-                        className="p-2 -ml-2 hover:bg-bg-hover text-fg-muted"
+                        className="p-2 -ml-2 hover:bg-bg-hover text-fg-muted rounded"
                     >
                         <Menu size={20} />
                     </button>
-                    <div>
-                        <h1 className="text-[13px] font-header font-bold leading-none truncate max-w-[150px]">
+                    <div className="overflow-hidden">
+                        <h1 className="text-[13px] font-header font-bold leading-none truncate max-w-[120px]">
                             {activeSession?.name || 'Remote'}
                         </h1>
                         <p className={`text-[10px] ${status === 'Connected' ? 'text-status-success' : 'text-fg-muted'}`}>
@@ -337,10 +340,147 @@ export function MobileApp() {
                         </p>
                     </div>
                 </div>
+
+                {/* header Controls */}
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={handleAddImage}
+                        className={`p-2 rounded transition-colors ${isImageMenuOpen ? 'bg-accent-primary text-white' : 'text-fg-muted hover:text-fg-primary'}`}
+                    >
+                        <ImageIcon size={20} className={isProcessingImage ? 'animate-pulse' : ''} />
+                    </button>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={onFileChange}
+                    />
+                    <input
+                        ref={galleryInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={onFileChange}
+                    />
+                    <button
+                        onClick={() => {
+                            setIsShortcutsMenuOpen(!isShortcutsMenuOpen);
+                            if (!isShortcutsMenuOpen) {
+                                setIsNavMenuOpen(false);
+                                setIsImageMenuOpen(false);
+                            }
+                        }}
+                        className={`p-2 rounded transition-colors ${isShortcutsMenuOpen ? 'bg-accent-primary text-white' : 'text-fg-muted hover:text-fg-primary'}`}
+                    >
+                        <Keyboard size={20} />
+                    </button>
+                    <button
+                        onClick={() => {
+                            setIsNavMenuOpen(!isNavMenuOpen);
+                            if (!isNavMenuOpen) {
+                                setIsShortcutsMenuOpen(false);
+                                setIsImageMenuOpen(false);
+                            }
+                        }}
+                        className={`p-2 rounded transition-colors ${isNavMenuOpen ? 'bg-accent-primary text-white' : 'text-fg-muted hover:text-fg-primary'}`}
+                    >
+                        <Move size={20} />
+                    </button>
+                </div>
             </header>
 
+            {/* Menus Dropdown (Top Right) */}
+            {(isShortcutsMenuOpen || isNavMenuOpen || isImageMenuOpen) && (
+                <div className="fixed top-14 right-2 z-[200] flex flex-col items-end gap-2">
+
+                    {/* Shortcuts Menu */}
+                    {isShortcutsMenuOpen && (
+                        <div className="shadow-2xl bg-[#161b22] border border-border rounded p-2 animate-in slide-in-from-top-2 duration-200">
+                            <div className="flex flex-col gap-1 max-h-[40vh] overflow-y-auto pr-1">
+                                {settings?.keyboardShortcuts?.map(shortcut => (
+                                    <button
+                                        key={shortcut.id}
+                                        onClick={() => handleExecuteShortcut(shortcut.keys)}
+                                        className="px-4 py-2 bg-[#0d1117] border border-border rounded text-[12px] text-fg-primary active:bg-accent-primary transition-colors whitespace-nowrap flex items-center justify-between gap-3"
+                                    >
+                                        <span className="font-bold">{shortcut.name}</span>
+                                        <span className="text-[10px] text-fg-muted font-mono">{shortcut.keys.join('+')}</span>
+                                    </button>
+                                ))}
+                                {(!settings?.keyboardShortcuts || settings.keyboardShortcuts.length === 0) && (
+                                    <div className="px-3 py-1 text-[10px] text-fg-muted italic">No keys</div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Navigation D-Pad */}
+                    {isNavMenuOpen && (
+                        <div className="shadow-2xl bg-[#161b22] border border-border rounded p-2 animate-in slide-in-from-top-2 duration-200">
+                            <div className="grid grid-cols-3 gap-1">
+                                <div />
+                                <button
+                                    onClick={() => handleExecuteNav('Up')}
+                                    className="w-10 h-10 bg-[#0d1117] border border-border rounded flex items-center justify-center active:bg-accent-primary"
+                                >
+                                    <ChevronDown size={20} className="rotate-180 opacity-50" />
+                                </button>
+                                <div />
+                                <button
+                                    onClick={() => handleExecuteNav('Left')}
+                                    className="w-10 h-10 bg-[#0d1117] border border-border rounded flex items-center justify-center active:bg-accent-primary"
+                                >
+                                    <ChevronLeft size={20} className="opacity-50" />
+                                </button>
+                                <div />
+                                <button
+                                    onClick={() => handleExecuteNav('Right')}
+                                    className="w-10 h-10 bg-[#0d1117] border border-border rounded flex items-center justify-center active:bg-accent-primary"
+                                >
+                                    <ChevronLeft size={20} className="rotate-180 opacity-50" />
+                                </button>
+                                <div />
+                                <button
+                                    onClick={() => handleExecuteNav('Down')}
+                                    className="w-10 h-10 bg-[#0d1117] border border-border rounded flex items-center justify-center active:bg-accent-primary"
+                                >
+                                    <ChevronDown size={20} className="opacity-50" />
+                                </button>
+                                <div />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Image Selection Menu */}
+                    {isImageMenuOpen && (
+                        <div className="shadow-2xl bg-[#161b22] border border-border rounded p-1 animate-in slide-in-from-top-2 duration-200 min-w-[150px]">
+                            <div className="flex flex-col gap-1">
+                                <button
+                                    onClick={handleTakePhoto}
+                                    className="px-4 py-3 bg-[#0d1117] border border-border rounded text-[13px] text-fg-primary active:bg-accent-primary transition-colors flex items-center gap-3 w-full"
+                                >
+                                    <ImageIcon size={16} className="opacity-70" />
+                                    <span className="font-bold">Take Photo</span>
+                                </button>
+                                <button
+                                    onClick={handleOpenGallery}
+                                    className="px-4 py-3 bg-[#0d1117] border border-border rounded text-[13px] text-fg-primary active:bg-accent-primary transition-colors flex items-center gap-3 w-full"
+                                >
+                                    <Plus size={16} className="opacity-70" />
+                                    <span className="font-bold">From Gallery</span>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            )}
+
             {/* Main Terminal Area */}
-            <main className="flex-1 overflow-hidden flex flex-col relative">
+            <main className="flex-1 overflow-hidden flex flex-col relative w-full">
                 <div className="flex-1 relative overflow-hidden">
                     {activeSessionId ? (
                         <div className="absolute inset-0" key={activeSessionId}>
@@ -361,141 +501,6 @@ export function MobileApp() {
                             </p>
                         </div>
                     )}
-                </div>
-
-                {/* Floating controls - Bottom Right Area */}
-                <div
-                    className="absolute right-4 z-[200] flex flex-col items-end gap-3 pointer-events-none transition-all duration-300 ease-out"
-                    style={{ bottom: `calc(1rem + ${keyboardOffset}px)` }}
-                >
-
-                    {/* Shortcuts (Keys) Strip */}
-                    {isShortcutsMenuOpen && (
-                        <div className="flex flex-col gap-2 pointer-events-auto animate-in slide-in-from-bottom-4 duration-200 mb-1">
-                            <div className="flex flex-col gap-1 max-h-[40vh] overflow-y-auto pr-1">
-                                {settings?.keyboardShortcuts?.map(shortcut => (
-                                    <button
-                                        key={shortcut.id}
-                                        onClick={() => handleExecuteShortcut(shortcut.keys)}
-                                        className="px-4 py-2 bg-[#161b22] border border-border rounded shadow-xl text-[12px] text-fg-primary active:bg-accent-primary transition-colors whitespace-nowrap flex items-center justify-between gap-3"
-                                    >
-                                        <span className="font-bold">{shortcut.name}</span>
-                                        <span className="text-[10px] text-fg-muted font-mono">{shortcut.keys.join('+')}</span>
-                                    </button>
-                                ))}
-                                {(!settings?.keyboardShortcuts || settings.keyboardShortcuts.length === 0) && (
-                                    <div className="bg-[#161b22]/80 px-3 py-1 rounded text-[10px] text-fg-muted italic">No keys</div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Navigation D-Pad */}
-                    {isNavMenuOpen && (
-                        <div className="grid grid-cols-3 gap-1 p-2 bg-transparent pointer-events-auto animate-in scale-in duration-200 mb-1">
-                            <div />
-                            <button
-                                onClick={() => handleExecuteNav('Up')}
-                                className="w-12 h-12 bg-[#161b22] border border-border rounded-full flex items-center justify-center active:bg-accent-primary shadow-2xl"
-                            >
-                                <ChevronDown size={24} className="rotate-180 opacity-50" />
-                            </button>
-                            <div />
-                            <button
-                                onClick={() => handleExecuteNav('Left')}
-                                className="w-12 h-12 bg-[#161b22] border border-border rounded-full flex items-center justify-center active:bg-accent-primary shadow-2xl"
-                            >
-                                <ChevronLeft size={24} className="opacity-50" />
-                            </button>
-                            <div />
-                            <button
-                                onClick={() => handleExecuteNav('Right')}
-                                className="w-12 h-12 bg-[#161b22] border border-border rounded-full flex items-center justify-center active:bg-accent-primary shadow-2xl"
-                            >
-                                <ChevronLeft size={24} className="rotate-180 opacity-50" />
-                            </button>
-                            <div />
-                            <button
-                                onClick={() => handleExecuteNav('Down')}
-                                className="w-12 h-12 bg-[#161b22] border border-border rounded-full flex items-center justify-center active:bg-accent-primary shadow-2xl"
-                            >
-                                <ChevronDown size={24} className="opacity-50" />
-                            </button>
-                            <div />
-                        </div>
-                    )}
-
-                    {/* Image Selection Menu */}
-                    {isImageMenuOpen && (
-                        <div className="flex flex-col gap-2 pointer-events-auto animate-in slide-in-from-bottom-4 duration-200 mb-1">
-                            <div className="flex flex-col gap-1">
-                                <button
-                                    onClick={handleTakePhoto}
-                                    className="px-4 py-3 bg-[#161b22] border border-border rounded shadow-xl text-[13px] text-fg-primary active:bg-accent-primary transition-colors flex items-center gap-3"
-                                >
-                                    <ImageIcon size={18} className="opacity-70" />
-                                    <span className="font-bold">Take Photo</span>
-                                </button>
-                                <button
-                                    onClick={handleOpenGallery}
-                                    className="px-4 py-3 bg-[#161b22] border border-border rounded shadow-xl text-[13px] text-fg-primary active:bg-accent-primary transition-colors flex items-center gap-3"
-                                >
-                                    <Plus size={18} className="opacity-70" />
-                                    <span className="font-bold">From Gallery</span>
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Persistent Control Toggles - FAB style */}
-                    <div className="flex gap-2 pointer-events-auto">
-                        <button
-                            onClick={handleAddImage}
-                            className={`w-12 h-12 rounded-full flex items-center justify-center shadow-2xl transition-all ${isImageMenuOpen ? 'bg-accent-primary text-white scale-110' : 'bg-[#161b22] text-fg-muted'}`}
-                        >
-                            <ImageIcon size={20} className={isProcessingImage ? 'animate-pulse' : (isImageMenuOpen ? 'opacity-100' : 'opacity-50')} />
-                        </button>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            className="hidden"
-                            onChange={onFileChange}
-                        />
-                        <input
-                            ref={galleryInputRef}
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            className="hidden"
-                            onChange={onFileChange}
-                        />
-                        <button
-                            onClick={() => {
-                                setIsShortcutsMenuOpen(!isShortcutsMenuOpen);
-                                if (!isShortcutsMenuOpen) {
-                                    setIsNavMenuOpen(false);
-                                    setIsImageMenuOpen(false);
-                                }
-                            }}
-                            className={`w-12 h-12 rounded-full flex items-center justify-center shadow-2xl transition-all ${isShortcutsMenuOpen ? 'bg-accent-primary text-white scale-110' : 'bg-[#161b22] text-fg-muted'}`}
-                        >
-                            <Keyboard size={20} className={isShortcutsMenuOpen ? 'opacity-100' : 'opacity-50'} />
-                        </button>
-                        <button
-                            onClick={() => {
-                                setIsNavMenuOpen(!isNavMenuOpen);
-                                if (!isNavMenuOpen) {
-                                    setIsShortcutsMenuOpen(false);
-                                    setIsImageMenuOpen(false);
-                                }
-                            }}
-                            className={`w-12 h-12 rounded-full flex items-center justify-center shadow-2xl transition-all ${isNavMenuOpen ? 'bg-accent-primary text-white scale-110' : 'bg-[#161b22] text-fg-muted'}`}
-                        >
-                            <Move size={20} className={isNavMenuOpen ? 'opacity-100' : 'opacity-50'} />
-                        </button>
-                    </div>
                 </div>
             </main>
 
