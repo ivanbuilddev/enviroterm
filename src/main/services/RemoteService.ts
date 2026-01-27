@@ -63,7 +63,7 @@ class RemoteService {
             }
 
             res.writeHead(200, { 'Content-Type': 'text/plain' });
-            res.end('Claude Terminal Remote Server Active\n');
+            res.end('EnviroTerm Remote Server Active\n');
         });
 
         this.wss = new WebSocketServer({ server: this.httpServer, path: '/remote' });

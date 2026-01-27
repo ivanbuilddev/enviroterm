@@ -1,6 +1,6 @@
-# Claude Terminal Manager
+# EnviroTerm
 
-A cross-platform desktop application for managing multiple Claude Code terminal sessions with SSH remote access capability.
+A cross-platform desktop application for managing multiple terminal sessions with SSH remote access capability.
 
 Built with Electron, React, and Tailwind CSS.
 
@@ -26,29 +26,6 @@ npm run dev
 | `npm run dev` | Start development server with hot reload |
 | `npm run build` | Build for production |
 | `npm run package` | Build and package as distributable |
-
-## Project Structure
-
-```
-claude-terminal-manager/
-├── index.html              # HTML entry point
-├── package.json            # Dependencies and scripts
-├── vite.config.ts          # Vite configuration
-├── tailwind.config.js      # Tailwind CSS configuration
-├── tsconfig.json           # TypeScript config (renderer)
-├── tsconfig.main.json      # TypeScript config (main process)
-├── docs/
-│   └── DESIGN.md           # Design document
-└── src/
-    ├── main/               # Electron main process
-    │   ├── index.ts        # Main entry point
-    │   └── preload.ts      # Preload script
-    └── renderer/           # React frontend
-        ├── App.tsx         # Main React component
-        ├── main.tsx        # React entry point
-        └── styles/
-            └── globals.css # Global styles with Tailwind
-```
 
 ## Tech Stack
 

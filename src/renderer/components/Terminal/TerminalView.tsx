@@ -189,7 +189,7 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
         let cmd = initialCommand || '';
         if (runInitialCommand && !initialCommand) {
           try {
-            cmd = await (window.electronAPI as any).settings.getInitialCommand(directoryId);
+            cmd = await window.electronAPI.settings.getInitialCommand(directoryId);
           } catch (err) {
             console.error('Failed to get initial command from settings:', err);
             cmd = 'claude'; // Fallback
@@ -219,8 +219,8 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
 
         // For images, use Electron's clipboard API to write the image
         // Then simulate Alt+V which is Claude CLI's paste command
-        if (type.startsWith('image/') && (window.electronAPI as any).clipboard?.writeImage) {
-          const success = await (window.electronAPI as any).clipboard.writeImage(base64);
+        if (type.startsWith('image/') && window.electronAPI.clipboard?.writeImage) {
+          const success = await window.electronAPI.clipboard.writeImage(base64);
           if (success) {
             console.log('[TerminalView] Image written to clipboard, triggering Alt+V paste');
 
@@ -262,7 +262,7 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
       }
     };
 
-    const unsubPaste = (window.electronAPI.terminal as any).onRemotePaste((data: any) => {
+    const unsubPaste = window.electronAPI.terminal.onRemotePaste((data: any) => {
       console.log('[TerminalView] onRemotePaste received:', { sessionId: data.sessionId, mySessionId: sessionId });
       if (data.sessionId === sessionId) {
         handleImagePaste(data.data);

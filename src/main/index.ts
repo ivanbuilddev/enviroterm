@@ -14,6 +14,7 @@ function createWindow(): void {
     height: 800,
     frame: false,
     titleBarStyle: 'hidden',
+    icon: path.join(__dirname, '../../src/renderer/assets/icons/EnviroTERM.png'),
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,

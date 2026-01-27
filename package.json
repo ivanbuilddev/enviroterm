@@ -1,7 +1,7 @@
 {
-  "name": "claude-terminal-manager",
+  "name": "enviroterm",
   "version": "0.1.0",
-  "description": "A cross-platform application for managing multiple Claude Code terminal sessions",
+  "description": "A cross-platform application for managing multiple terminal sessions",
   "main": "dist/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -54,8 +54,9 @@
     "roarr": "^7.21.4"
   },
   "build": {
-    "appId": "com.claude-terminal-manager",
-    "productName": "Claude Terminal Manager",
+    "appId": "com.enviroterm",
+    "productName": "EnviroTerm",
+    "icon": "src/renderer/assets/icons/EnviroTERM.png",
     "directories": {
       "output": "release"
     },

@@ -113,7 +113,7 @@ export function BrowserPanel({ isVisible, onClose, onRunCommand }: BrowserPanelP
                   const btnExec = document.createElement('button');
                   btnExec.textContent = 'Execute';
                   btnExec.className = 'antigravity-injected';
-                  btnExec.title = 'Run this command in Claude Terminal';
+                  btnExec.title = 'Run this command in EnviroTerm';
                   btnExec.style.cssText = 'background: hsl(190, 35%, 52%); color: white; border: none; padding: 4px 10px; border-radius: 0; font-size: 11px; font-weight: 500; cursor: pointer; margin-left: 10px; vertical-align: middle; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: relative; z-index: 9999;';
                   
                   btnExec.onmouseenter = () => {
@@ -151,7 +151,7 @@ export function BrowserPanel({ isVisible, onClose, onRunCommand }: BrowserPanelP
                 const btnExec = document.createElement('button');
                 btnExec.textContent = 'Execute';
                 btnExec.className = 'antigravity-injected';
-                btnExec.title = 'Run referenced command in Claude Terminal';
+                btnExec.title = 'Run referenced command in EnviroTerm';
                 btnExec.style.cssText = 'background: hsl(190, 35%, 52%); color: white; border: none; padding: 4px 10px; border-radius: 0; font-size: 11px; font-weight: 500; cursor: pointer; margin-left: 10px; vertical-align: middle; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: relative; z-index: 9999;';
                 
                 btnExec.onmouseenter = () => {

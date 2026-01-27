@@ -59,6 +59,7 @@ export interface ElectronAPI {
     kill: (sessionId: string) => void;
     onData: (callback: (data: TerminalData) => void) => () => void;
     onExit: (callback: (sessionId: string, code: number) => void) => () => void;
+    onRemotePaste: (callback: (data: { sessionId: string; data: any }) => void) => () => void;
   };
   window: {
     minimize: () => void;
@@ -73,9 +74,9 @@ export interface ElectronAPI {
     generateToken: (directoryId: string) => Promise<string>;
   };
   settings: {
-    get: () => Promise<any>;
-    set: (settings: any) => Promise<any>;
-    getInitialCommand: () => Promise<string>;
+    get: (directoryId?: string) => Promise<any>;
+    set: (settings: any, directoryId?: string) => Promise<any>;
+    getInitialCommand: (directoryId?: string) => Promise<string>;
   };
   getWebviewPreloadPath: () => Promise<string>;
 }

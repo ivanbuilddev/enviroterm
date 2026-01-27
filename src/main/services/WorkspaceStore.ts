@@ -1,56 +1,18 @@
-import Store from 'electron-store';
 import { randomUUID } from 'crypto';
-import path from 'path';
 import { Directory, Session } from '../../shared/types';
+import { JsonStore } from './JsonStore';
 
 interface StoreSchema {
   directories: Directory[];
   sessions: Session[];
-  // Keep the old key for migration
-  sessions_old?: any[];
 }
 
-const store = new Store<StoreSchema>({
-  name: 'workspace', // New store name for new architecture
-  defaults: {
-    directories: [],
-    sessions: []
-  }
+const store = new JsonStore<StoreSchema>('workspaces_data.json', {
+  directories: [],
+  sessions: []
 });
 
-// Migration logic: If old 'sessions' config exists, migrate it
-const oldStore = new Store({ name: 'sessions' });
-if (oldStore.has('sessions') && store.get('directories').length === 0) {
-  const oldSessions = oldStore.get('sessions') as any[];
-  const directories: Directory[] = [];
-  const sessions: Session[] = [];
 
-  oldSessions.forEach(old => {
-    const dirId = old.id || randomUUID();
-    directories.push({
-      id: dirId,
-      path: old.folderPath || '',
-      name: old.folderName || '',
-      backgroundColor: old.backgroundColor || 'hsl(220, 16%, 10%)',
-      textColor: old.textColor || 'hsl(0, 0%, 95%)',
-      lastAccessedAt: old.lastAccessedAt || Date.now(),
-      createdAt: old.createdAt || Date.now()
-    });
-
-    // Create a default session for this directory
-    sessions.push({
-      id: randomUUID(),
-      directoryId: dirId,
-      name: old.folderName || 'Default Terminal',
-      lastAccessedAt: old.lastAccessedAt || Date.now(),
-      createdAt: old.createdAt || Date.now()
-    });
-  });
-
-  store.set('directories', directories);
-  store.set('sessions', sessions);
-  // We don't delete oldStore to be safe, but we've migrated
-}
 
 function generateRandomColor(): string {
   const hue = Math.floor(Math.random() * 360);
