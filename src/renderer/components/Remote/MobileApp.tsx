@@ -164,36 +164,46 @@ export function MobileApp() {
     };
 
     const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file || !activeSessionId || !socketRef.current) return;
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0 || !activeSessionId || !socketRef.current) return;
 
         setIsProcessingImage(true);
-        try {
-            const reader = new FileReader();
-            reader.onload = () => {
-                const base64 = reader.result as string;
-                if (socketRef.current?.readyState === WebSocket.OPEN) {
-                    socketRef.current.send(JSON.stringify({
-                        type: 'paste',
-                        sessionId: activeSessionId,
-                        data: {
-                            name: file.name,
-                            type: file.type,
-                            size: `${(file.size / 1024).toFixed(2)} KB`,
-                            base64: base64
-                        }
-                    }));
-                }
-                setIsProcessingImage(false);
-            };
-            reader.readAsDataURL(file);
-        } catch (err) {
-            console.error('Failed to process image:', err);
-            setIsProcessingImage(false);
-        }
 
-        // Reset input
-        e.target.value = '';
+        try {
+            // Process files sequentially to avoid overwhelming the socket
+            for (const file of files) {
+                await new Promise<void>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const base64 = reader.result as string;
+                        if (socketRef.current?.readyState === WebSocket.OPEN) {
+                            socketRef.current.send(JSON.stringify({
+                                type: 'paste',
+                                sessionId: activeSessionId,
+                                data: {
+                                    name: file.name,
+                                    type: file.type,
+                                    size: `${(file.size / 1024).toFixed(2)} KB`,
+                                    base64: base64
+                                }
+                            }));
+                            resolve();
+                        } else {
+                            reject(new Error('Socket not open'));
+                        }
+                    };
+                    reader.onerror = () => reject(reader.error);
+                    reader.readAsDataURL(file);
+                });
+            }
+        } catch (err) {
+            console.error('Failed to process image(s):', err);
+            setError(`Failed to process image(s): ${err instanceof Error ? err.message : String(err)}`);
+        } finally {
+            setIsProcessingImage(false);
+            // Reset input
+            e.target.value = '';
+        }
     };
 
     useEffect(() => {
@@ -457,6 +467,7 @@ export function MobileApp() {
                             ref={galleryInputRef}
                             type="file"
                             accept="image/*"
+                            multiple
                             className="hidden"
                             onChange={onFileChange}
                         />
