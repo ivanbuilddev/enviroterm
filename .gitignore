@@ -33,3 +33,6 @@ npm-debug.log*
 /.claude
 /.gemini
 /.opencode
+
+# Github Token
+GH_TOKEN.txt

@@ -3,6 +3,7 @@ import path from 'path';
 import { registerWorkspaceHandlers } from './ipc/workspaceHandlers';
 import { registerTerminalHandlers } from './ipc/terminalHandlers';
 import { registerFileSystemHandlers } from './ipc/fileSystemHandlers';
+import { registerUpdaterHandlers } from './ipc/updaterHandlers';
 import { terminalService } from './services/TerminalService';
 import { remoteService } from './services/RemoteService';
 import { SettingsStore } from './services/SettingsStore';
@@ -130,6 +131,9 @@ app.whenReady().then(() => {
   registerWorkspaceHandlers();
   registerFileSystemHandlers();
   createWindow();
+
+  // Register updater handlers after window creation
+  registerUpdaterHandlers(mainWindow);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

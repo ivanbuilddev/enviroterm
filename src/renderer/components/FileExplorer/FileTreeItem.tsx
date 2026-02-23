@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ChevronRight, ChevronDown, Folder, FolderOpen, File as FileIcon, FileCode } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { ChevronRight, ChevronDown, Folder, FolderOpen, File as FileIcon, FileCode, ExternalLink } from 'lucide-react';
 import { FileEntry } from '../../../../shared/types';
 
 interface FileTreeItemProps {
@@ -39,6 +39,36 @@ export function FileTreeItem({ entry, depth = 0, onFileClick, activeFilePath, sh
     setIsOpen(!isOpen);
   };
 
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuVisible) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuVisible(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuVisible]);
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuPos({ x: e.clientX, y: e.clientY });
+    setMenuVisible(true);
+  };
+
+  const handleOpenInExplorer = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.electronAPI.files.showItemInFolder(entry.path);
+    setMenuVisible(false);
+  };
+
   const isSelected = activeFilePath === entry.path;
 
   // Determine icon
@@ -50,7 +80,7 @@ export function FileTreeItem({ entry, depth = 0, onFileClick, activeFilePath, sh
   const dirName = showFullPath ? entry.path.replace(entry.name, '').split(/[/\\]/).filter(Boolean).pop() : '';
 
   return (
-    <div className="select-none" title={entry.path}>
+    <div className="select-none" title={entry.path} onContextMenu={handleContextMenu}>
       <div
         className={`flex items-center gap-1 py-1 px-2 cursor-pointer hover:bg-bg-hover transition-colors ${isSelected ? 'bg-accent-primary/20 text-accent-primary' : 'text-fg-muted'}`}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
@@ -61,13 +91,13 @@ export function FileTreeItem({ entry, depth = 0, onFileClick, activeFilePath, sh
             isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />
           )}
         </span>
-        
+
         <Icon size={16} className={`shrink-0 ${entry.isDirectory ? 'text-accent-secondary' : 'text-fg-muted'}`} />
-        
+
         <div className="flex flex-col min-w-0 flex-1 ml-1">
           <span className="truncate text-sm">{entry.name}</span>
           {showFullPath && dirName && (
-             <span className="truncate text-[10px] text-fg-faint">{dirName}</span>
+            <span className="truncate text-[10px] text-fg-faint">{dirName}</span>
           )}
         </div>
       </div>
@@ -80,15 +110,32 @@ export function FileTreeItem({ entry, depth = 0, onFileClick, activeFilePath, sh
             <div className="pl-8 py-1 text-xs text-fg-faint">Empty</div>
           ) : (
             children.map((child) => (
-              <FileTreeItem 
-                key={child.path} 
-                entry={child} 
-                depth={depth + 1} 
+              <FileTreeItem
+                key={child.path}
+                entry={child}
+                depth={depth + 1}
                 onFileClick={onFileClick}
                 activeFilePath={activeFilePath}
               />
             ))
           )}
+        </div>
+      )}
+
+      {menuVisible && (
+        <div
+          ref={menuRef}
+          className="fixed z-[10000] bg-bg-elevated border border-border rounded shadow-lg py-1 min-w-[160px]"
+          style={{ top: menuPos.y, left: menuPos.x }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={handleOpenInExplorer}
+            className="w-full text-left px-3 py-1.5 text-xs text-fg-primary hover:bg-bg-hover transition-colors flex items-center gap-2"
+          >
+            <ExternalLink size={12} className="text-fg-muted" />
+            Open in File Explorer
+          </button>
         </div>
       )}
     </div>

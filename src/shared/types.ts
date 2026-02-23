@@ -96,6 +96,13 @@ export interface ElectronAPI {
     getInitialCommand: (workspaceId?: string) => Promise<string>;
   };
   getWebviewPreloadPath: () => Promise<string>;
+  updater: {
+    check: () => Promise<boolean>;
+    install: () => void;
+    onStatusChange: (callback: (status: string) => void) => () => void;
+    onProgress: (callback: (progress: any) => void) => () => void;
+    onError: (callback: (error: string) => void) => () => void;
+  };
 }
 
 // Augment window object for TypeScript

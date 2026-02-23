@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { ipcMain, shell } from 'electron';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -13,7 +13,7 @@ export function registerFileSystemHandlers() {
       })).sort((a, b) => {
         // Folders first, then files
         if (a.isDirectory === b.isDirectory) {
-            return a.name.localeCompare(b.name);
+          return a.name.localeCompare(b.name);
         }
         return a.isDirectory ? -1 : 1;
       });
@@ -45,14 +45,14 @@ export function registerFileSystemHandlers() {
   ipcMain.handle('files:search', async (_, rootPath: string, query: string) => {
     const results: { name: string; isDirectory: boolean; path: string }[] = [];
     const lowerQuery = query.toLowerCase();
-    
+
     // Helper function for recursive search
     async function searchRecursive(currentPath: string) {
       if (results.length > 500) return; // Limit results for performance
 
       try {
         const items = await fs.readdir(currentPath, { withFileTypes: true });
-        
+
         for (const item of items) {
           // Skip heavy directories for performance
           if (item.name === 'node_modules' || item.name === '.git' || item.name === 'dist' || item.name === 'build') {
@@ -82,13 +82,16 @@ export function registerFileSystemHandlers() {
 
     if (!query) return [];
     await searchRecursive(rootPath);
-    
+
     // Sort results: Folders first, then files
     return results.sort((a, b) => {
-        if (a.isDirectory === b.isDirectory) {
-            return a.name.localeCompare(b.name);
-        }
-        return a.isDirectory ? -1 : 1;
+      if (a.isDirectory === b.isDirectory) {
+        return a.name.localeCompare(b.name);
+      }
+      return a.isDirectory ? -1 : 1;
     });
+  });
+  ipcMain.handle('files:showItemInFolder', async (_, filePath: string) => {
+    shell.showItemInFolder(filePath);
   });
 }

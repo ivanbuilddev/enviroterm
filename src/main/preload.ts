@@ -83,9 +83,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
     readFile: (path: string) => ipcRenderer.invoke('files:readFile', path),
     writeFile: (path: string, content: string) => ipcRenderer.invoke('files:writeFile', path, content),
     search: (rootPath: string, query: string) => ipcRenderer.invoke('files:search', rootPath, query),
+    showItemInFolder: (path: string) => ipcRenderer.invoke('files:showItemInFolder', path),
   },
   uiState: {
     get: () => ipcRenderer.invoke('ui-state:get'),
     save: (state: any) => ipcRenderer.invoke('ui-state:save', state),
+  },
+  updater: {
+    check: () => ipcRenderer.invoke('updater:check'),
+    install: () => ipcRenderer.invoke('updater:install'),
+    onStatusChange: (callback: (status: string) => void) => {
+      const handler = (_event: IpcRendererEvent, status: string) => callback(status);
+      ipcRenderer.on('updater:status', handler);
+      return () => ipcRenderer.removeListener('updater:status', handler);
+    },
+    onProgress: (callback: (progress: any) => void) => {
+      const handler = (_event: IpcRendererEvent, progress: any) => callback(progress);
+      ipcRenderer.on('updater:progress', handler);
+      return () => ipcRenderer.removeListener('updater:progress', handler);
+    },
+    onError: (callback: (error: string) => void) => {
+      const handler = (_event: IpcRendererEvent, error: string) => callback(error);
+      ipcRenderer.on('updater:error', handler);
+      return () => ipcRenderer.removeListener('updater:error', handler);
+    },
   }
 });

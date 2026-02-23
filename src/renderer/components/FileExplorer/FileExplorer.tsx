@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { FileEntry } from '../../../../shared/types';
 import { FileTreeItem } from './FileTreeItem';
-import { RefreshCw, Search, X } from 'lucide-react';
+import { RefreshCw, Search, X, ExternalLink } from 'lucide-react';
 
 interface FileExplorerProps {
   rootPath: string;
@@ -13,7 +13,7 @@ export function FileExplorer({ rootPath, onFileSelect, activeFilePath }: FileExp
   const [rootFiles, setRootFiles] = useState<FileEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<FileEntry[]>([]);
@@ -43,7 +43,7 @@ export function FileExplorer({ rootPath, onFileSelect, activeFilePath }: FileExp
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    
+
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
@@ -82,15 +82,24 @@ export function FileExplorer({ rootPath, onFileSelect, activeFilePath }: FileExp
       <div className="flex flex-col border-b border-border bg-bg-elevated">
         <div className="flex items-center justify-between px-3 py-2">
           <span className="text-xs font-bold text-fg-muted uppercase tracking-wider">Explorer</span>
-          <button 
-            onClick={loadFiles} 
-            className="p-1 hover:bg-bg-hover rounded text-fg-muted hover:text-fg-primary transition-colors"
-            title="Refresh"
-          >
-            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => window.electronAPI.workspaces.openInExplorer(rootPath)}
+              className="p-1 hover:bg-bg-hover rounded text-fg-muted hover:text-fg-primary transition-colors"
+              title="Open in File Explorer"
+            >
+              <ExternalLink size={14} />
+            </button>
+            <button
+              onClick={loadFiles}
+              className="p-1 hover:bg-bg-hover rounded text-fg-muted hover:text-fg-primary transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+            </button>
+          </div>
         </div>
-        
+
         {/* Search Input */}
         <div className="px-2 pb-2">
           <div className="relative">
@@ -103,7 +112,7 @@ export function FileExplorer({ rootPath, onFileSelect, activeFilePath }: FileExp
             />
             <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-fg-muted" />
             {searchQuery && (
-              <button 
+              <button
                 onClick={clearSearch}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-fg-muted hover:text-fg-primary"
               >

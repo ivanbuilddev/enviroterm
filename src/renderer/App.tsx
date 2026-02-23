@@ -9,6 +9,7 @@ import { SettingsModal } from './components/Settings/SettingsModal';
 import { WorkspacePopover } from './components/Sidebar/WorkspacePopover';
 import { FileExplorer } from './components/FileExplorer/FileExplorer';
 import { CodeEditor } from './components/CodeEditor/CodeEditor';
+import { Download } from 'lucide-react';
 
 function App() {
   if (!window.electronAPI) {
@@ -45,6 +46,7 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [workspaceSettings, setWorkspaceSettings] = useState<{ id: string; name: string } | null>(null);
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<'none' | 'checking' | 'available' | 'downloaded'>('none');
 
   const bottomPanelRef = useRef<BottomPanelHandle>(null);
 
@@ -113,6 +115,25 @@ function App() {
   };
 
   useEffect(() => {
+    if (!window.electronAPI?.updater) return;
+
+    // Check for updates on startup
+    window.electronAPI.updater.check();
+
+    const unsubs = [
+      window.electronAPI.updater.onStatusChange((status: string) => {
+        setUpdateStatus(status as any);
+      }),
+      window.electronAPI.updater.onError((err: string) => {
+        console.error('Updater error:', err);
+        setUpdateStatus('none');
+      })
+    ];
+
+    return () => unsubs.forEach(unsub => unsub());
+  }, []);
+
+  useEffect(() => {
     if (!isResizingEditor) return;
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -121,12 +142,12 @@ function App() {
       // But we are resizing the editor panel itself.
       // The resize handle is on the right edge of the editor.
       // So width = Mouse X - (Sidebar Width + File Explorer Width)
-      
+
       const sidebarWidth = 64;
       const explorerWidth = isExplorerVisible ? 256 : 0; // w-64 is 256px
-      
+
       const newWidth = e.clientX - sidebarWidth - explorerWidth;
-      
+
       setEditorWidth(Math.max(200, Math.min(newWidth, document.body.clientWidth * 0.8)));
     };
 
@@ -143,7 +164,7 @@ function App() {
   }, [isResizingEditor, isBrowserPanelVisible]);
 
   return (
-    <div 
+    <div
       className="min-h-screen bg-bg-base text-fg-primary flex flex-col h-screen overflow-hidden"
       onContextMenu={(e) => {
         // Only open context menu if clicking on the main content area (not sidebar/header if handled there)
@@ -174,6 +195,27 @@ function App() {
         </div>
 
         <div className="flex items-center gap-0.5 no-drag ml-auto">
+          <div className="flex items-center mr-2">
+            <button
+              onClick={() => {
+                if (updateStatus === 'downloaded') {
+                  window.electronAPI.updater.install();
+                }
+              }}
+              disabled={updateStatus !== 'downloaded'}
+              className={`p-1.5 transition-colors rounded ${updateStatus === 'downloaded'
+                  ? 'text-accent-primary hover:bg-accent-primary/10 cursor-pointer'
+                  : 'text-fg-muted cursor-default'
+                }`}
+              title={
+                updateStatus === 'downloaded' ? 'Install Update' :
+                  updateStatus === 'checking' ? 'Checking for updates...' :
+                    updateStatus === 'available' ? 'Downloading update...' : 'App up to date'
+              }
+            >
+              <Download className={`w-3.5 h-3.5 ${updateStatus === 'checking' || updateStatus === 'available' ? 'animate-pulse' : ''}`} />
+            </button>
+          </div>
           <button
             onClick={() => window.electronAPI.window.minimize()}
             className="p-1.5 hover:bg-white/10 transition-colors text-fg-muted hover:text-fg-primary"
@@ -245,23 +287,23 @@ function App() {
         {/* File Explorer Panel */}
         {isExplorerVisible && (
           <div className="w-64 border-r border-border bg-bg-surface flex flex-col overflow-hidden">
-             <FileExplorer 
-               rootPath={activeWorkspace?.path || ''} 
-               onFileSelect={handleFileSelect}
-               activeFilePath={activeFilePath}
-             />
+            <FileExplorer
+              rootPath={activeWorkspace?.path || ''}
+              onFileSelect={handleFileSelect}
+              activeFilePath={activeFilePath}
+            />
           </div>
         )}
 
         <main className="flex-1 flex overflow-hidden">
           {/* Center content area (canvas + bottom panel) */}
-          <div 
+          <div
             className="flex-1 flex flex-col overflow-hidden relative"
             onContextMenu={(e) => {
-                e.preventDefault();
-                if (activeWorkspace) {
-                    setContextMenuPos({ x: e.clientX, y: e.clientY });
-                }
+              e.preventDefault();
+              if (activeWorkspace) {
+                setContextMenuPos({ x: e.clientX, y: e.clientY });
+              }
             }}
           >
             {/* Canvas area */}
@@ -272,27 +314,27 @@ function App() {
                 </div>
               ) : (
                 <div className="flex-1 flex h-full overflow-hidden">
-                  
+
                   {/* Editor Area - resizable side panel (Now on Left) */}
                   {activeFilePath && (
                     <>
                       {/* Editor Panel */}
-                      <div 
+                      <div
                         className="flex flex-col bg-bg-base border-r border-border shrink-0"
                         style={{ width: editorWidth }}
                       >
                         <div className="h-8 bg-bg-elevated border-b border-border flex items-center justify-between px-2 flex-shrink-0">
-                             <span className="text-xs text-fg-muted truncate max-w-[calc(100%-60px)]">{activeFilePath}</span>
-                             <button onClick={closeEditor} className="text-xs text-fg-muted hover:text-fg-primary px-2 py-1 rounded hover:bg-bg-hover">Close</button>
+                          <span className="text-xs text-fg-muted truncate max-w-[calc(100%-60px)]">{activeFilePath}</span>
+                          <button onClick={closeEditor} className="text-xs text-fg-muted hover:text-fg-primary px-2 py-1 rounded hover:bg-bg-hover">Close</button>
                         </div>
                         <div className="flex-1 overflow-hidden relative">
-                           <CodeEditor 
-                             filePath={activeFilePath}
-                             initialContent={activeFileContent}
-                             onSave={handleFileSave}
-                           />
-                           {/* Overlay during resize to prevent iframe capturing events */}
-                           {isResizingEditor && <div className="absolute inset-0 z-50 bg-transparent" />}
+                          <CodeEditor
+                            filePath={activeFilePath}
+                            initialContent={activeFileContent}
+                            onSave={handleFileSave}
+                          />
+                          {/* Overlay during resize to prevent iframe capturing events */}
+                          {isResizingEditor && <div className="absolute inset-0 z-50 bg-transparent" />}
                         </div>
                       </div>
 
@@ -341,65 +383,65 @@ function App() {
 
       {/* Context Menu Overlay */}
       {contextMenuPos && activeWorkspace && (
-          <div 
-              className="fixed inset-0 z-[9999]" 
-              onClick={() => setContextMenuPos(null)}
-              onContextMenu={(e) => {
-                  e.preventDefault();
-                  setContextMenuPos(null);
-              }}
+        <div
+          className="fixed inset-0 z-[9999]"
+          onClick={() => setContextMenuPos(null)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setContextMenuPos(null);
+          }}
+        >
+          <div
+            className="absolute"
+            style={{
+              top: contextMenuPos.y > window.innerHeight / 2 ? 'auto' : contextMenuPos.y,
+              bottom: contextMenuPos.y > window.innerHeight / 2 ? window.innerHeight - contextMenuPos.y : 'auto',
+              left: contextMenuPos.x
+            }}
+            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
           >
-              <div 
-                  className="absolute"
-                  style={{ 
-                      top: contextMenuPos.y > window.innerHeight / 2 ? 'auto' : contextMenuPos.y, 
-                      bottom: contextMenuPos.y > window.innerHeight / 2 ? window.innerHeight - contextMenuPos.y : 'auto',
-                      left: contextMenuPos.x 
-                  }}
-                  onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
-              >
-                  <WorkspacePopover
-                      workspace={activeWorkspace}
-                      sessions={sessions}
-                      onSelectSession={(sessionId) => {
-                          handleSelectSession(activeWorkspace.id, sessionId);
-                          setContextMenuPos(null);
-                      }}
-                      onCreateSession={() => {
-                          createSession(`Terminal ${sessions.length + 1}`);
-                          setContextMenuPos(null);
-                      }}
-                      onDeleteWorkspace={() => {
-                          deleteWorkspace(activeWorkspace.id);
-                          setContextMenuPos(null);
-                      }}
-                      onOpenInVSCode={() => {
-                          openInVSCode(activeWorkspace.path);
-                          setContextMenuPos(null);
-                      }}
-                      onOpenInExplorer={() => {
-                          openInExplorer(activeWorkspace.path);
-                          setContextMenuPos(null);
-                      }}
-                      onRunCommand={(name, command) => {
-                          handleRunWorkspaceCommand(activeWorkspace.id, name, command);
-                          setContextMenuPos(null);
-                      }}
-                      onSendToPhone={() => {
-                          // Handle this if needed, or disable for context menu?
-                          // For now, maybe just log or alert, or reuse state?
-                          // Sidebar has state for this. App doesn't.
-                          // Let's omit or mock for now, or hoist state.
-                          console.log('Send to phone from context menu not fully implemented');
-                          setContextMenuPos(null);
-                      }}
-                      onOpenSettings={() => {
-                          handleOpenWorkspaceSettings(activeWorkspace.id, activeWorkspace.name);
-                          setContextMenuPos(null);
-                      }}
-                  />
-              </div>
+            <WorkspacePopover
+              workspace={activeWorkspace}
+              sessions={sessions}
+              onSelectSession={(sessionId) => {
+                handleSelectSession(activeWorkspace.id, sessionId);
+                setContextMenuPos(null);
+              }}
+              onCreateSession={() => {
+                createSession(`Terminal ${sessions.length + 1}`);
+                setContextMenuPos(null);
+              }}
+              onDeleteWorkspace={() => {
+                deleteWorkspace(activeWorkspace.id);
+                setContextMenuPos(null);
+              }}
+              onOpenInVSCode={() => {
+                openInVSCode(activeWorkspace.path);
+                setContextMenuPos(null);
+              }}
+              onOpenInExplorer={() => {
+                openInExplorer(activeWorkspace.path);
+                setContextMenuPos(null);
+              }}
+              onRunCommand={(name, command) => {
+                handleRunWorkspaceCommand(activeWorkspace.id, name, command);
+                setContextMenuPos(null);
+              }}
+              onSendToPhone={() => {
+                // Handle this if needed, or disable for context menu?
+                // For now, maybe just log or alert, or reuse state?
+                // Sidebar has state for this. App doesn't.
+                // Let's omit or mock for now, or hoist state.
+                console.log('Send to phone from context menu not fully implemented');
+                setContextMenuPos(null);
+              }}
+              onOpenSettings={() => {
+                handleOpenWorkspaceSettings(activeWorkspace.id, activeWorkspace.name);
+                setContextMenuPos(null);
+              }}
+            />
           </div>
+        </div>
       )}
 
       {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
