@@ -34,4 +34,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           # Disable code signing for macOS to prevent 134 errors on runners without certs
           CSC_IDENTITY_AUTO_DISCOVERY: false 
+          # Increase memory limit to prevent "heap out of memory" errors
+          NODE_OPTIONS: --max-old-space-size=4096
         run: npm run build && npx electron-builder --publish always
