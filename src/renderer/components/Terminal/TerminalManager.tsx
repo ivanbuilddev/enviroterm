@@ -198,6 +198,7 @@ export function TerminalManager({
                 isVisible={true}
                 isFocused={session.id === focusedSessionId}
                 runInitialCommand={true}
+                initialCommand={session.initialCommand}
                 workspaceId={activeWorkspace.id}
               />
             </TerminalWindow>

@@ -14,6 +14,7 @@ export interface Session {
   id: string;
   workspaceId: string;
   name: string;             // Editable title
+  initialCommand?: string;
   lastAccessedAt: number;
   createdAt: number;
 }
@@ -32,8 +33,21 @@ export interface TerminalData {
   data: string;
 }
 
+// File system entry
+export interface FileEntry {
+  name: string;
+  isDirectory: boolean;
+  path: string;
+}
+
 // Electron API interface exposed to renderer
 export interface ElectronAPI {
+  files: {
+    readDir: (path: string) => Promise<FileEntry[]>;
+    readFile: (path: string) => Promise<string>;
+    writeFile: (path: string, content: string) => Promise<boolean>;
+    search: (rootPath: string, query: string) => Promise<FileEntry[]>;
+  };
   clipboard: {
     writeImage: (base64DataUrl: string) => Promise<boolean>;
   };
@@ -45,10 +59,11 @@ export interface ElectronAPI {
     delete: (id: string) => Promise<void>;
     reorder: (ids: string[]) => Promise<void>;
     openInVSCode: (path: string) => Promise<void>;
+    openInExplorer: (path: string) => Promise<void>;
   };
   sessions: {
     getByWorkspace: (workspaceId: string) => Promise<Session[]>;
-    create: (workspaceId: string, name?: string) => Promise<Session>;
+    create: (workspaceId: string, name?: string, initialCommand?: string) => Promise<Session>;
     rename: (id: string, name: string) => Promise<void>;
     delete: (id: string) => Promise<void>;
     onCreated: (callback: (session: Session) => void) => () => void;

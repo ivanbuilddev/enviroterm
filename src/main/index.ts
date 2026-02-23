@@ -2,16 +2,22 @@ import { app, BrowserWindow, ipcMain, shell, clipboard, nativeImage } from 'elec
 import path from 'path';
 import { registerWorkspaceHandlers } from './ipc/workspaceHandlers';
 import { registerTerminalHandlers } from './ipc/terminalHandlers';
+import { registerFileSystemHandlers } from './ipc/fileSystemHandlers';
 import { terminalService } from './services/TerminalService';
 import { remoteService } from './services/RemoteService';
 import { SettingsStore } from './services/SettingsStore';
+import { UiStateStore } from './services/UiStateStore';
 
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow(): void {
+  const windowState = UiStateStore.getWindowState();
+
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: windowState.width,
+    height: windowState.height,
+    x: windowState.x,
+    y: windowState.y,
     frame: false,
     titleBarStyle: 'hidden',
     icon: path.join(__dirname, '../../src/renderer/assets/icons/EnviroTERM.png'),
@@ -22,6 +28,28 @@ function createWindow(): void {
       webviewTag: true,
     },
   });
+
+  if (windowState.isMaximized) {
+    mainWindow.maximize();
+  }
+
+  const saveWindowState = () => {
+    if (!mainWindow) return;
+    const bounds = mainWindow.getBounds();
+    UiStateStore.setWindowState({
+      width: bounds.width,
+      height: bounds.height,
+      x: bounds.x,
+      y: bounds.y,
+      isMaximized: mainWindow.isMaximized()
+    });
+  };
+
+  mainWindow.on('resize', saveWindowState);
+  mainWindow.on('move', saveWindowState);
+  mainWindow.on('maximize', saveWindowState);
+  mainWindow.on('unmaximize', saveWindowState);
+  mainWindow.on('close', saveWindowState);
 
   // Register terminal handlers with main window reference
   registerTerminalHandlers(mainWindow);
@@ -87,10 +115,20 @@ function createWindow(): void {
   ipcMain.handle('settings:getInitialCommand', (_, directoryId?: string) => {
     return SettingsStore.getInitialCommand(directoryId);
   });
+
+  ipcMain.handle('ui-state:get', () => {
+    return UiStateStore.getAppState();
+  });
+
+  ipcMain.handle('ui-state:save', (_, state) => {
+    UiStateStore.setAppState(state);
+    return true;
+  });
 }
 
 app.whenReady().then(() => {
   registerWorkspaceHandlers();
+  registerFileSystemHandlers();
   createWindow();
 
   app.on('activate', () => {

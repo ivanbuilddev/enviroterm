@@ -12,10 +12,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (id: string) => ipcRenderer.invoke('workspaces:delete', id),
     reorder: (ids: string[]) => ipcRenderer.invoke('workspaces:reorder', ids),
     openInVSCode: (path: string) => ipcRenderer.invoke('workspaces:openInVSCode', path),
+    openInExplorer: (path: string) => ipcRenderer.invoke('workspaces:openInExplorer', path),
   },
   sessions: {
     getByWorkspace: (workspaceId: string) => ipcRenderer.invoke('sessions:getByWorkspace', workspaceId),
-    create: (workspaceId: string, name?: string) => ipcRenderer.invoke('sessions:create', workspaceId, name),
+    create: (workspaceId: string, name?: string, initialCommand?: string) => ipcRenderer.invoke('sessions:create', workspaceId, name, initialCommand),
     rename: (id: string, name: string) => ipcRenderer.invoke('sessions:rename', id, name),
     delete: (id: string) => ipcRenderer.invoke('sessions:delete', id),
     onCreated: (callback: (session: { id: string; workspaceId: string; name: string; lastAccessedAt: number; createdAt: number }) => void) => {
@@ -76,5 +77,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     set: (settings: { initialCommand?: string; keyboardShortcuts?: any[] }, workspaceId?: string) =>
       ipcRenderer.invoke('settings:set', settings, workspaceId),
     getInitialCommand: (workspaceId?: string) => ipcRenderer.invoke('settings:getInitialCommand', workspaceId),
+  },
+  files: {
+    readDir: (path: string) => ipcRenderer.invoke('files:readDir', path),
+    readFile: (path: string) => ipcRenderer.invoke('files:readFile', path),
+    writeFile: (path: string, content: string) => ipcRenderer.invoke('files:writeFile', path, content),
+    search: (rootPath: string, query: string) => ipcRenderer.invoke('files:search', rootPath, query),
+  },
+  uiState: {
+    get: () => ipcRenderer.invoke('ui-state:get'),
+    save: (state: any) => ipcRenderer.invoke('ui-state:save', state),
   }
 });

@@ -1,14 +1,23 @@
 import { Workspace, Session } from '../../../shared/types';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import vscodeIcon from '../../assets/icons/vscode.svg';
-import { Settings } from 'lucide-react';
+import { Settings, Folder, Play, ChevronRight, ChevronDown, Search, Plus } from 'lucide-react';
+
+interface CustomCommand {
+    id: string;
+    name: string;
+    command: string;
+}
 
 interface WorkspacePopoverProps {
     workspace: Workspace;
     sessions: Session[];
     onSelectSession: (sessionId: string) => void;
+    onCreateSession: () => void;
     onDeleteWorkspace: () => void;
     onOpenInVSCode: () => void;
+    onOpenInExplorer: () => void;
+    onRunCommand: (name: string, command: string) => void;
     onSendToPhone: () => void;
     onOpenSettings: () => void;
 }
@@ -17,8 +26,11 @@ export function WorkspacePopover({
     workspace,
     sessions,
     onSelectSession,
+    onCreateSession,
     onDeleteWorkspace,
     onOpenInVSCode,
+    onOpenInExplorer,
+    onRunCommand,
     onSendToPhone,
     onOpenSettings
 }: WorkspacePopoverProps) {
@@ -29,6 +41,32 @@ export function WorkspacePopover({
             day: 'numeric'
         });
     }, [workspace.createdAt]);
+
+    const [customCommands, setCustomCommands] = useState<CustomCommand[]>([]);
+    const [isCommandsExpanded, setIsCommandsExpanded] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const settings = await window.electronAPI.settings.get();
+                if (settings.customCommands) {
+                    setCustomCommands(settings.customCommands);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        };
+        fetchSettings();
+    }, []);
+
+    const filteredCommands = useMemo(() => {
+        if (!searchQuery) return customCommands;
+        return customCommands.filter(cmd => 
+            cmd.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            cmd.command.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [customCommands, searchQuery]);
 
     return (
         <div className="w-64 bg-bg-surface border border-border shadow-2xl flex flex-col p-4 animate-in fade-in slide-in-from-left-2 duration-150">
@@ -43,7 +81,16 @@ export function WorkspacePopover({
 
             {/* Active Sessions */}
             <div className="mb-4 flex-1">
-                <h4 className="text-[9px] font-medium text-fg-muted uppercase tracking-wider mb-2">Active Sessions</h4>
+                <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-[9px] font-medium text-fg-muted uppercase tracking-wider">Active Sessions</h4>
+                    <button 
+                        onClick={onCreateSession}
+                        className="p-1 hover:bg-bg-hover text-fg-muted hover:text-accent-primary rounded transition-colors"
+                        title="New Session"
+                    >
+                        <Plus size={12} />
+                    </button>
+                </div>
                 {sessions.length === 0 ? (
                     <p className="text-[10px] text-fg-faint italic px-2">No active sessions</p>
                 ) : (
@@ -64,6 +111,56 @@ export function WorkspacePopover({
                 )}
             </div>
 
+            {/* Custom Commands */}
+            {customCommands.length > 0 && (
+                <div className="mb-4">
+                    <button
+                        onClick={() => setIsCommandsExpanded(!isCommandsExpanded)}
+                        className="w-full flex items-center justify-between group mb-2"
+                    >
+                        <h4 className="text-[9px] font-medium text-fg-muted uppercase tracking-wider group-hover:text-fg-primary transition-colors">Run Command</h4>
+                        {isCommandsExpanded ? <ChevronDown size={12} className="text-fg-muted" /> : <ChevronRight size={12} className="text-fg-muted" />}
+                    </button>
+                    
+                    {isCommandsExpanded && (
+                        <div className="animate-in fade-in slide-in-from-top-1 duration-150">
+                            {/* Search */}
+                            <div className="relative mb-2">
+                                <Search className="absolute left-2 top-1.5 w-3 h-3 text-fg-faint" />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Filter commands..."
+                                    className="w-full bg-bg-elevated border border-border text-fg-primary text-[10px] pl-7 pr-2 py-1 rounded outline-none focus:border-accent-primary transition-colors placeholder:text-fg-faint"
+                                    autoFocus
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-1 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
+                                {filteredCommands.length === 0 ? (
+                                    <p className="text-[10px] text-fg-faint italic px-2 py-1">No matches found</p>
+                                ) : (
+                                    filteredCommands.map(cmd => (
+                                        <button
+                                            key={cmd.id}
+                                            onClick={() => onRunCommand(cmd.name, cmd.command)}
+                                            className="w-full text-left px-2 py-1.5 hover:bg-bg-hover group transition-colors flex items-center gap-2 rounded shrink-0"
+                                            title={cmd.command}
+                                        >
+                                            <Play className="w-3 h-3 text-accent-primary shrink-0" />
+                                            <span className="text-[11px] text-fg-secondary group-hover:text-fg-primary truncate">
+                                                {cmd.name}
+                                            </span>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Actions */}
             <div className="flex flex-col gap-1 border-t border-border pt-3">
                 <button
@@ -72,6 +169,13 @@ export function WorkspacePopover({
                 >
                     <img src={vscodeIcon} className="w-3.5 h-3.5" alt="VS Code" />
                     Open in VS Code
+                </button>
+                <button
+                    onClick={onOpenInExplorer}
+                    className="w-full text-left px-2 py-1.5 hover:bg-bg-hover hover:text-fg-primary text-[10px] text-fg-secondary flex items-center gap-2 transition-colors"
+                >
+                    <Folder className="w-3.5 h-3.5" />
+                    Open in Explorer
                 </button>
                 <button
                     onClick={onOpenSettings}

@@ -6,6 +6,7 @@ export interface BottomPanelTab {
   id: string;
   name: string;
   initialCommand?: string;
+  cwd?: string;
 }
 
 interface BottomPanelProps {
@@ -16,7 +17,7 @@ interface BottomPanelProps {
 }
 
 export interface BottomPanelHandle {
-  createNewTab: (name?: string, initialCommand?: string) => void;
+  createNewTab: (name?: string, initialCommand?: string, cwd?: string) => void;
 }
 
 const MIN_HEIGHT = 150;
@@ -38,13 +39,15 @@ export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
       isResizing: false
     });
 
-    const createNewTab = useCallback((name?: string, initialCommand?: string) => {
-      if (!currentWorkspace) return;
+    const createNewTab = useCallback((name?: string, initialCommand?: string, cwd?: string) => {
+      // Allow creation if cwd is provided OR currentWorkspace exists
+      if (!currentWorkspace && !cwd) return;
 
       const newTab: BottomPanelTab = {
         id: `panel-tab-${Date.now()}`,
         name: name || `Terminal ${tabs.length + 1}`,
         initialCommand,
+        cwd,
       };
       setTabs(prev => [...prev, newTab]);
       setActiveTabId(newTab.id);
@@ -185,14 +188,14 @@ export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
               key={tab.id}
               className={`absolute inset-0 ${activeTabId === tab.id ? 'visible' : 'invisible'}`}
             >
-              {currentWorkspace && (
+              {(currentWorkspace || tab.cwd) && (
                 <TerminalView
                   sessionId={tab.id}
                   sessionName={tab.name}
-                  folderPath={currentWorkspace}
+                  folderPath={tab.cwd || currentWorkspace!}
                   isVisible={activeTabId === tab.id}
                   isFocused={activeTabId === tab.id}
-                  runInitialCommand={false}
+                  runInitialCommand={!!tab.initialCommand}
                   initialCommand={tab.initialCommand}
                   workspaceId={currentWorkspaceId}
                 />

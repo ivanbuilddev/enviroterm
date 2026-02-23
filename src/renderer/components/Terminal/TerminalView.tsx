@@ -25,8 +25,11 @@ function manualFit(terminal: Terminal | null, container: HTMLDivElement | null):
   if (!core) return null;
 
   // Get the actual rendered cell dimensions from the core renderer
-  const cellWidth = core._renderService?.dimensions?.css?.cell?.width;
-  const cellHeight = core._renderService?.dimensions?.css?.cell?.height;
+  // Add safety check for _renderService
+  if (!core._renderService) return null;
+  
+  const cellWidth = core._renderService.dimensions?.css?.cell?.width;
+  const cellHeight = core._renderService.dimensions?.css?.cell?.height;
 
   if (!cellWidth || !cellHeight || cellWidth === 0 || cellHeight === 0) return null;
 

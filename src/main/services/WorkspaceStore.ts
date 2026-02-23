@@ -127,12 +127,13 @@ export const WorkspaceStore = {
     return store.get('sessions').filter(s => s.workspaceId === workspaceId);
   },
 
-  createSession(workspaceId: string, name?: string): Session {
+  createSession(workspaceId: string, name?: string, initialCommand?: string): Session {
     const now = Date.now();
     const session: Session = {
       id: randomUUID(),
       workspaceId,
       name: name || 'Terminal',
+      initialCommand,
       lastAccessedAt: now,
       createdAt: now
     };

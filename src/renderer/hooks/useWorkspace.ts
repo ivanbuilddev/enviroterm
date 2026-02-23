@@ -15,8 +15,10 @@ interface UseWorkspaceReturn {
   deleteWorkspace: (id: string) => Promise<void>;
   reorderWorkspaces: (ids: string[]) => Promise<void>;
   openInVSCode: (path: string) => Promise<void>;
+  openInExplorer: (path: string) => Promise<void>;
   // Session methods
-  createSession: (name?: string) => Promise<void>;
+  createSession: (name?: string, initialCommand?: string) => Promise<void>;
+  createSessionForWorkspace: (workspaceId: string, name: string, initialCommand: string) => Promise<void>;
   renameSession: (id: string, name: string) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
 }
@@ -132,12 +134,23 @@ export function useWorkspace(): UseWorkspaceReturn {
     await window.electronAPI.workspaces.openInVSCode(path);
   }, []);
 
+  const openInExplorer = useCallback(async (path: string) => {
+    await window.electronAPI.workspaces.openInExplorer(path);
+  }, []);
+
   // --- SESSION METHODS ---
 
-  const createSession = useCallback(async (name?: string) => {
+  const createSession = useCallback(async (name?: string, initialCommand?: string) => {
     if (!activeWorkspaceId) return;
-    const session = await window.electronAPI.sessions.create(activeWorkspaceId, name);
+    const session = await window.electronAPI.sessions.create(activeWorkspaceId, name, initialCommand);
     setSessions(prev => [...prev, session]);
+  }, [activeWorkspaceId]);
+
+  const createSessionForWorkspace = useCallback(async (workspaceId: string, name: string, initialCommand: string) => {
+    const session = await window.electronAPI.sessions.create(workspaceId, name, initialCommand);
+    if (workspaceId === activeWorkspaceId) {
+      setSessions(prev => [...prev, session]);
+    }
   }, [activeWorkspaceId]);
 
   const renameSession = useCallback(async (id: string, name: string) => {
@@ -163,7 +176,9 @@ export function useWorkspace(): UseWorkspaceReturn {
     deleteWorkspace,
     reorderWorkspaces,
     openInVSCode,
+    openInExplorer,
     createSession,
+    createSessionForWorkspace,
     renameSession,
     deleteSession,
   };

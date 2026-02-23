@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Terminal, PanelBottom, Globe, Settings } from 'lucide-react';
+import { Terminal, PanelBottom, Globe, Settings, FolderTree } from 'lucide-react';
 import { Workspace, Session } from '../../../shared/types';
 import { WorkspaceIcon } from './WorkspaceIcon';
 import { AddWorkspaceButton } from './AddWorkspaceButton';
@@ -15,14 +15,19 @@ interface SidebarProps {
   onReorderWorkspaces: (ids: string[]) => void;
   onDeleteWorkspace: (id: string) => void;
   onOpenInVSCode: (path: string) => void;
+  onOpenInExplorer: (path: string) => void;
+  onRunCommand: (workspaceId: string, name: string, command: string) => void;
   onSelectSession: (workspaceId: string, sessionId: string) => void;
   onCreateSession: () => void;
   onToggleBottomPanel: () => void;
   isBottomPanelVisible: boolean;
   onToggleBrowserPanel: () => void;
   isBrowserPanelVisible: boolean;
+  onToggleExplorer: () => void;
+  isExplorerVisible: boolean;
   onOpenSettings: () => void;
   onOpenWorkspaceSettings: (workspaceId: string, workspaceName: string) => void;
+  onCreateSessionForWorkspace: (workspaceId: string, name: string) => void;
 }
 
 export function Sidebar({
@@ -33,14 +38,19 @@ export function Sidebar({
   onReorderWorkspaces,
   onDeleteWorkspace,
   onOpenInVSCode,
+  onOpenInExplorer,
+  onRunCommand,
   onSelectSession,
   onCreateSession,
   onToggleBottomPanel,
   isBottomPanelVisible,
   onToggleBrowserPanel,
   isBrowserPanelVisible,
+  onToggleExplorer,
+  isExplorerVisible,
   onOpenSettings,
-  onOpenWorkspaceSettings
+  onOpenWorkspaceSettings,
+  onCreateSessionForWorkspace
 }: SidebarProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -130,8 +140,11 @@ export function Sidebar({
                   workspace={workspace}
                   sessions={hoveredSessions}
                   onSelectSession={(sessionId) => onSelectSession(workspace.id, sessionId)}
+                  onCreateSession={() => onCreateSessionForWorkspace(workspace.id, `Terminal ${hoveredSessions.length + 1}`)}
                   onDeleteWorkspace={() => onDeleteWorkspace(workspace.id)}
                   onOpenInVSCode={() => onOpenInVSCode(workspace.path)}
+                  onOpenInExplorer={() => onOpenInExplorer(workspace.path)}
+                  onRunCommand={(name, command) => onRunCommand(workspace.id, name, command)}
                   onSendToPhone={() => {
                     setRemoteModalData({ id: workspace.id, path: workspace.path });
                     setHoveredId(null);
@@ -160,6 +173,16 @@ export function Sidebar({
       {/* Action buttons fixed at bottom */}
       <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center gap-2 py-3 border-t border-border bg-bg-elevated">
         <button
+          onClick={onToggleExplorer}
+          className={`w-10 h-10 flex items-center justify-center border transition-all duration-150 ${isExplorerVisible
+            ? 'bg-accent-primary/20 border-accent-primary text-accent-primary'
+            : 'bg-bg-surface border-border text-fg-muted hover:text-fg-primary hover:border-accent-primary hover:bg-bg-hover'
+            }`}
+          title={isExplorerVisible ? "Close File Explorer" : "Open File Explorer"}
+        >
+          <FolderTree size={18} />
+        </button>
+        <button
           onClick={onCreateSession}
           className="w-10 h-10 flex items-center justify-center bg-bg-surface border border-border text-fg-muted hover:text-fg-primary hover:border-accent-primary hover:bg-bg-hover transition-all duration-150"
           title="New Terminal"
@@ -172,7 +195,7 @@ export function Sidebar({
             ? 'bg-accent-primary/20 border-accent-primary text-accent-primary'
             : 'bg-bg-surface border-border text-fg-muted hover:text-fg-primary hover:border-accent-primary hover:bg-bg-hover'
             }`}
-          title={isBrowserPanelVisible ? "Close Browser" : "Open Browser"}
+          title={isBrowserPanelVisible ? "Close Skills Browser" : "Open Skills Browser"}
         >
           <Globe size={18} />
         </button>
@@ -182,7 +205,7 @@ export function Sidebar({
             ? 'bg-accent-primary/20 border-accent-primary text-accent-primary'
             : 'bg-bg-surface border-border text-fg-muted hover:text-fg-primary hover:border-accent-primary hover:bg-bg-hover'
             }`}
-          title={isBottomPanelVisible ? "Close Panel" : "Open Panel"}
+          title={isBottomPanelVisible ? "Close Terminals Panel" : "Open Terminals Panel"}
         >
           <PanelBottom size={18} />
         </button>

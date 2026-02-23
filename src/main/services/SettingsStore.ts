@@ -12,6 +12,7 @@ interface GlobalSettings {
   initialCommand: string;
   keyboardShortcuts: KeyboardShortcut[];
   imageShortcut: string[];
+  customCommands: { id: string; name: string; command: string }[];
 }
 
 interface WorkspaceSettings {
@@ -21,7 +22,8 @@ interface WorkspaceSettings {
 const globalStore = new JsonStore<GlobalSettings>('global_settings.json', {
   initialCommand: 'claude',
   keyboardShortcuts: [],
-  imageShortcut: ['Alt', 'V']
+  imageShortcut: ['Alt', 'V'],
+  customCommands: []
 });
 
 const workspaceStore = new JsonStore<WorkspaceSettings>('workspace_settings.json', {
@@ -57,10 +59,13 @@ export const SettingsStore = {
       ? workspaceOverride.imageShortcut
       : (global.imageShortcut || ['Alt', 'V']);
 
+    const customCommands = global.customCommands || [];
+
     return {
       initialCommand,
       keyboardShortcuts,
       imageShortcut,
+      customCommands,
       workspaceOverrides: overrides
     };
   },
@@ -75,6 +80,9 @@ export const SettingsStore = {
       }
       if (settings.imageShortcut !== undefined) {
         globalStore.set('imageShortcut', settings.imageShortcut);
+      }
+      if (settings.customCommands !== undefined) {
+        globalStore.set('customCommands', settings.customCommands);
       }
     } else {
       const overrides = workspaceStore.get('overrides');

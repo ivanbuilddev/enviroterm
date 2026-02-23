@@ -1,4 +1,4 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron';
+import { ipcMain, dialog, BrowserWindow, shell } from 'electron';
 import { WorkspaceStore } from '../services/WorkspaceStore';
 import { CreateWorkspaceResult } from '../../shared/types';
 
@@ -46,14 +46,19 @@ export function registerWorkspaceHandlers(): void {
     exec(`code "${folderPath}"`);
   });
 
+  ipcMain.handle('workspaces:openInExplorer', (_, folderPath: string) => {
+    shell.openPath(folderPath);
+  });
+
+
   // --- SESSION HANDLERS ---
 
   ipcMain.handle('sessions:getByWorkspace', (_, workspaceId: string) => {
     return WorkspaceStore.getSessionsByWorkspace(workspaceId);
   });
 
-  ipcMain.handle('sessions:create', (_, workspaceId: string, name?: string) => {
-    return WorkspaceStore.createSession(workspaceId, name);
+  ipcMain.handle('sessions:create', (_, workspaceId: string, name?: string, initialCommand?: string) => {
+    return WorkspaceStore.createSession(workspaceId, name, initialCommand);
   });
 
   ipcMain.handle('sessions:rename', (_, id: string, name: string) => {

@@ -27,8 +27,7 @@ export default defineConfig({
   renderer: {
     root: '.',
     server: {
-      host: true,
-      hmr: false
+      host: true
     },
     build: {
       outDir: 'dist/renderer',

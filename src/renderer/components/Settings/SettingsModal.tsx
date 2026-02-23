@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Command, Keyboard, Plus, Trash2, Save } from 'lucide-react';
+import { X, Command, Keyboard, Plus, Trash2, Terminal } from 'lucide-react';
 
 interface KeyboardShortcut {
     id: string;
@@ -7,10 +7,17 @@ interface KeyboardShortcut {
     keys: string[];
 }
 
+interface CustomCommand {
+    id: string;
+    name: string;
+    command: string;
+}
+
 interface Settings {
     initialCommand: string;
     keyboardShortcuts: KeyboardShortcut[];
     imageShortcut: string[];
+    customCommands: CustomCommand[];
 }
 
 interface SettingsModalProps {
@@ -23,10 +30,12 @@ export function SettingsModal({ onClose, workspaceId, workspaceName }: SettingsM
     const [settings, setSettings] = useState<Settings>({
         initialCommand: 'claude',
         keyboardShortcuts: [],
-        imageShortcut: ['Alt', 'V']
+        imageShortcut: ['Alt', 'V'],
+        customCommands: []
     });
     const [isLoading, setIsLoading] = useState(true);
     const [recordingId, setRecordingId] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<'general' | 'commands' | 'shortcuts'>('general');
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -135,6 +144,34 @@ export function SettingsModal({ onClose, workspaceId, workspaceName }: SettingsM
         }));
     };
 
+    const addCommand = () => {
+        const newCommand: CustomCommand = {
+            id: Math.random().toString(36).substr(2, 9),
+            name: 'New Command',
+            command: ''
+        };
+        setSettings({
+            ...settings,
+            customCommands: [...(settings.customCommands || []), newCommand]
+        });
+    };
+
+    const removeCommand = (id: string) => {
+        setSettings({
+            ...settings,
+            customCommands: settings.customCommands.filter(c => c.id !== id)
+        });
+    };
+
+    const updateCommand = (id: string, updates: Partial<CustomCommand>) => {
+        setSettings(prev => ({
+            ...prev,
+            customCommands: prev.customCommands.map(c =>
+                c.id === id ? { ...c, ...updates } : c
+            )
+        }));
+    };
+
     const startRecording = (id: string) => {
         if (id === 'image-shortcut') {
             setSettings(prev => ({ ...prev, imageShortcut: [] }));
@@ -154,143 +191,238 @@ export function SettingsModal({ onClose, workspaceId, workspaceName }: SettingsM
                 {/* Header decor */}
                 <div className="h-1 bg-gradient-to-r from-accent-primary via-accent-secondary to-accent-primary shrink-0" />
 
-                <div className="p-6 flex flex-col h-full overflow-hidden">
-                    <div className="flex items-center justify-between mb-6 shrink-0">
-                        <h2 className="text-xl font-header text-fg-primary flex items-center gap-2">
-                            <Command size={20} className="text-accent-primary" />
-                            {workspaceId ? `Workspace Settings: ${workspaceName}` : 'Global Settings'}
-                        </h2>
+                <div className="flex h-full overflow-hidden">
+                    {/* Sidebar */}
+                    <div className="w-48 bg-bg-base border-r border-border flex flex-col pt-6 pb-4">
+                        <div className="px-4 mb-6">
+                            <h2 className="text-[11px] font-header text-fg-muted uppercase tracking-wider mb-1">
+                                {workspaceId ? 'Workspace' : 'Global'}
+                            </h2>
+                            <div className="text-fg-primary font-medium truncate" title={workspaceName || 'Settings'}>
+                                {workspaceId ? workspaceName : 'Settings'}
+                            </div>
+                        </div>
+
+                        <div className="flex-1 flex flex-col gap-0.5 px-2">
+                            <button
+                                onClick={() => setActiveTab('general')}
+                                className={`flex items-center gap-2 px-3 py-2 text-[12px] rounded transition-colors ${activeTab === 'general' ? 'bg-accent-primary/10 text-accent-primary' : 'text-fg-muted hover:bg-bg-hover hover:text-fg-primary'}`}
+                            >
+                                <Command size={14} />
+                                Startup
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('commands')}
+                                className={`flex items-center gap-2 px-3 py-2 text-[12px] rounded transition-colors ${activeTab === 'commands' ? 'bg-accent-primary/10 text-accent-primary' : 'text-fg-muted hover:bg-bg-hover hover:text-fg-primary'}`}
+                            >
+                                <Terminal size={14} />
+                                Custom Commands
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('shortcuts')}
+                                className={`flex items-center gap-2 px-3 py-2 text-[12px] rounded transition-colors ${activeTab === 'shortcuts' ? 'bg-accent-primary/10 text-accent-primary' : 'text-fg-muted hover:bg-bg-hover hover:text-fg-primary'}`}
+                            >
+                                <Keyboard size={14} />
+                                Shortcuts
+                            </button>
+                        </div>
+
+                        <div className="mt-auto px-4 pt-4 border-t border-border">
+                            <button
+                                onClick={onClose}
+                                className="w-full py-1.5 text-[11px] text-fg-muted hover:text-fg-primary transition-colors mb-2"
+                            >
+                                Close
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                className="w-full py-1.5 bg-accent-primary hover:bg-accent-primary/80 text-white text-[11px] font-medium rounded transition-all shadow-sm"
+                            >
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Main Content */}
+                    <div className="flex-1 flex flex-col h-full overflow-hidden bg-bg-surface relative">
                         <button
                             onClick={onClose}
-                            className="p-1 hover:bg-bg-hover text-fg-muted hover:text-fg-primary transition-colors cursor-pointer"
+                            className="absolute top-4 right-4 p-1 hover:bg-bg-hover text-fg-muted hover:text-fg-primary transition-colors cursor-pointer z-10"
                         >
                             <X size={20} />
                         </button>
-                    </div>
 
-                    <div className="flex-1 flex flex-col space-y-8 pr-2 overflow-hidden">
-                        {/* Initial Command Section */}
-                        <section className="shrink-0">
-                            <h3 className="text-[10px] text-fg-muted uppercase tracking-wider font-bold mb-3 flex items-center gap-2">
-                                <Command size={14} />
-                                Terminal Startup
-                            </h3>
-                            <div className="space-y-2">
-                                <label className="text-[12px] text-fg-muted">Default Startup Command</label>
-                                <input
-                                    type="text"
-                                    value={settings.initialCommand}
-                                    onChange={(e) => setSettings({ ...settings, initialCommand: e.target.value })}
-                                    className="w-full bg-bg-elevated border border-border text-fg-primary text-[13px] px-3 py-2 rounded outline-none focus:border-accent-primary transition-colors"
-                                    placeholder="e.g. claude"
-                                />
-                                <p className="text-[11px] text-fg-faint">This command runs automatically when a new terminal session is created.</p>
-                            </div>
-                        </section>
-
-                        {/* Keyboard Shortcuts Section */}
-                        <section className="flex-1 flex flex-col min-h-0">
-                            <div className="flex items-center justify-between mb-3 shrink-0">
-                                <h3 className="text-[10px] text-fg-muted uppercase tracking-wider font-bold flex items-center gap-2">
-                                    <Keyboard size={14} />
-                                    Remote Key Combinations
-                                </h3>
-                                <button
-                                    onClick={addShortcut}
-                                    className="p-1 hover:bg-bg-hover text-accent-primary transition-colors flex items-center gap-1 text-[11px]"
-                                >
-                                    <Plus size={14} /> Add New
-                                </button>
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar space-y-2 bg-bg-elevated/10 p-2 rounded-lg border border-border/50">
-                                {/* System shortcut - Send Image - always present, not deletable but recordable */}
-                                <div className={`p-2 bg-bg-base/50 border rounded flex items-center gap-3 transition-all ${recordingId === 'image-shortcut' ? 'border-accent-primary ring-1 ring-accent-primary' : 'border-border/50'}`}>
-                                    <span className="text-fg-muted text-[12px] font-medium w-36 truncate">Send Image</span>
-                                    <div className="flex-1 flex items-center gap-2">
-                                        <input
-                                            type="text"
-                                            value={settings.imageShortcut.join(' + ')}
-                                            className={`flex-1 bg-bg-surface border border-border text-fg-muted text-[11px] px-2 py-1 rounded outline-none transition-colors ${recordingId === 'image-shortcut' ? 'bg-accent-primary/5 text-accent-primary border-accent-primary' : ''}`}
-                                            placeholder={recordingId === 'image-shortcut' ? 'Press keys...' : 'e.g. Alt + V'}
-                                            readOnly
-                                        />
-                                        <button
-                                            onClick={() => recordingId === 'image-shortcut' ? setRecordingId(null) : startRecording('image-shortcut')}
-                                            className={`p-1.5 rounded transition-all flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-bold ${recordingId === 'image-shortcut'
-                                                ? 'bg-status-error text-white animate-pulse'
-                                                : 'bg-bg-surface border border-border text-fg-muted hover:text-accent-primary hover:border-accent-primary'
-                                                }`}
-                                            title={recordingId === 'image-shortcut' ? 'Stop Recording' : 'Record Shortcut'}
-                                        >
-                                            <div className={`w-2 h-2 rounded-full ${recordingId === 'image-shortcut' ? 'bg-white' : 'bg-status-error'}`} />
-                                            {recordingId === 'image-shortcut' ? 'Stop' : 'Record'}
-                                        </button>
+                        <div className="p-8 h-full overflow-y-auto custom-scrollbar">
+                            {activeTab === 'general' && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-200">
+                                    <div className="border-b border-border pb-4">
+                                        <h2 className="text-xl font-header text-fg-primary">Startup Configuration</h2>
+                                        <p className="text-[13px] text-fg-muted mt-1">Configure how terminal sessions start.</p>
                                     </div>
-                                    <div className="w-[14px]" />
-                                </div>
 
-                                {settings.keyboardShortcuts.length === 0 ? (
-                                    <p className="text-[12px] text-fg-faint italic text-center py-4 bg-bg-elevated/30 border border-dashed border-border rounded">No custom shortcuts defined yet.</p>
-                                ) : (
-                                    settings.keyboardShortcuts.map((shortcut) => (
-                                        <div key={shortcut.id} className={`p-2 bg-bg-elevated border rounded flex items-center gap-3 relative group transition-all ${recordingId === shortcut.id ? 'border-accent-primary ring-1 ring-accent-primary' : 'border-border hover:border-accent-primary/50'}`}>
+                                    {/* Initial Command Section */}
+                                    <section>
+                                        <h3 className="text-[13px] font-medium text-fg-primary mb-3">Default Command</h3>
+                                        <div className="space-y-2">
                                             <input
                                                 type="text"
-                                                value={shortcut.name}
-                                                onChange={(e) => updateShortcut(shortcut.id, { name: e.target.value })}
-                                                className="bg-transparent border-none text-fg-primary text-[12px] font-medium w-36 focus:outline-none placeholder:text-fg-faint truncate"
-                                                placeholder="Shortcut Name"
+                                                value={settings.initialCommand}
+                                                onChange={(e) => setSettings({ ...settings, initialCommand: e.target.value })}
+                                                className="w-full bg-bg-elevated border border-border text-fg-primary text-[13px] px-3 py-2.5 rounded outline-none focus:border-accent-primary transition-colors shadow-sm"
+                                                placeholder="e.g. claude"
                                             />
-                                            <div className="flex-1 flex items-center gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={shortcut.keys.join(' + ')}
-                                                    onChange={(e) => updateShortcut(shortcut.id, { keys: e.target.value.split('+').map(k => k.trim()).filter(k => k !== '') })}
-                                                    className={`flex-1 bg-bg-surface border border-border text-fg-muted text-[11px] px-2 py-1 rounded focus:border-accent-primary focus:text-fg-primary outline-none transition-colors ${recordingId === shortcut.id ? 'bg-accent-primary/5 text-accent-primary border-accent-primary' : ''}`}
-                                                    placeholder={recordingId === shortcut.id ? 'Press keys...' : 'e.g. Ctrl + Shift + P'}
-                                                    readOnly={recordingId === shortcut.id}
-                                                />
-                                                <button
-                                                    onClick={() => recordingId === shortcut.id ? setRecordingId(null) : startRecording(shortcut.id)}
-                                                    className={`p-1.5 rounded transition-all flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-bold ${recordingId === shortcut.id
-                                                        ? 'bg-status-error text-white animate-pulse'
-                                                        : 'bg-bg-surface border border-border text-fg-muted hover:text-accent-primary hover:border-accent-primary'
-                                                        }`}
-                                                    title={recordingId === shortcut.id ? 'Stop Recording' : 'Record Shortcut'}
-                                                >
-                                                    <div className={`w-2 h-2 rounded-full ${recordingId === shortcut.id ? 'bg-white' : 'bg-status-error'}`} />
-                                                    {recordingId === shortcut.id ? 'Stop' : 'Record'}
-                                                </button>
+                                            <p className="text-[12px] text-fg-faint">
+                                                This command runs automatically when a new terminal session is created.
+                                                Use this to start your preferred shell or CLI tool.
+                                            </p>
+                                        </div>
+                                    </section>
+                                </div>
+                            )}
+
+                            {activeTab === 'commands' && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-200 h-full flex flex-col">
+                                    <div className="border-b border-border pb-4 shrink-0">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h2 className="text-xl font-header text-fg-primary">Custom Commands</h2>
+                                                <p className="text-[13px] text-fg-muted mt-1">Manage global commands available in all workspaces.</p>
                                             </div>
                                             <button
-                                                onClick={() => removeShortcut(shortcut.id)}
-                                                className="p-1 text-fg-faint hover:text-status-error opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0"
-                                                title="Delete Shortcut"
+                                                onClick={addCommand}
+                                                className="px-3 py-1.5 bg-accent-primary/10 hover:bg-accent-primary/20 text-accent-primary text-[12px] font-medium rounded transition-colors flex items-center gap-1.5"
                                             >
-                                                <Trash2 size={14} />
+                                                <Plus size={14} /> Add Command
                                             </button>
                                         </div>
-                                    ))
-                                )}
-                            </div>
-                        </section>
-                    </div>
+                                    </div>
 
-                    <div className="mt-8 pt-6 border-t border-border flex justify-end gap-3 shrink-0">
-                        <button
-                            onClick={onClose}
-                            className="px-4 py-2 text-[13px] text-fg-muted hover:text-fg-primary transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleSave}
-                            className="px-4 py-2 bg-accent-primary hover:bg-accent-primary/80 text-white text-[13px] font-medium rounded flex items-center gap-2 transition-all"
-                        >
-                            <Save size={16} />
-                            Save Changes
-                        </button>
+                                    <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar space-y-3">
+                                        {(!settings.customCommands || settings.customCommands.length === 0) ? (
+                                            <div className="flex flex-col items-center justify-center py-12 text-fg-faint border border-dashed border-border rounded-lg bg-bg-elevated/30">
+                                                <Terminal size={32} className="mb-3 opacity-20" />
+                                                <p className="text-[13px]">No custom commands defined yet.</p>
+                                                <button onClick={addCommand} className="text-[12px] text-accent-primary hover:underline mt-2">Create your first command</button>
+                                            </div>
+                                        ) : (
+                                            settings.customCommands.map((cmd) => (
+                                                <div key={cmd.id} className="p-3 bg-bg-elevated border border-border rounded-lg flex items-center gap-4 group hover:border-accent-primary/30 transition-all shadow-sm">
+                                                    <div className="w-1/3 min-w-[120px]">
+                                                        <label className="text-[10px] text-fg-faint uppercase tracking-wider font-bold mb-1 block">Name</label>
+                                                        <input
+                                                            type="text"
+                                                            value={cmd.name}
+                                                            onChange={(e) => updateCommand(cmd.id, { name: e.target.value })}
+                                                            className="w-full bg-bg-base border-b border-transparent hover:border-border focus:border-accent-primary text-fg-primary text-[13px] px-2 py-1 outline-none transition-colors placeholder:text-fg-faint/50"
+                                                            placeholder="Command Name"
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <label className="text-[10px] text-fg-faint uppercase tracking-wider font-bold mb-1 block">Command</label>
+                                                        <input
+                                                            type="text"
+                                                            value={cmd.command}
+                                                            onChange={(e) => updateCommand(cmd.id, { command: e.target.value })}
+                                                            className="w-full bg-bg-base border-b border-transparent hover:border-border focus:border-accent-primary text-fg-muted text-[13px] px-2 py-1 font-mono outline-none transition-colors placeholder:text-fg-faint/50"
+                                                            placeholder="e.g. npm install"
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        onClick={() => removeCommand(cmd.id)}
+                                                        className="p-2 text-fg-faint hover:text-status-error hover:bg-status-error/10 rounded transition-all opacity-0 group-hover:opacity-100 self-end"
+                                                        title="Delete Command"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'shortcuts' && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-200 h-full flex flex-col">
+                                    <div className="border-b border-border pb-4 shrink-0">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h2 className="text-xl font-header text-fg-primary">Keyboard Shortcuts</h2>
+                                                <p className="text-[13px] text-fg-muted mt-1">Customize shortcuts for the mobile remote control.</p>
+                                            </div>
+                                            <button
+                                                onClick={addShortcut}
+                                                className="px-3 py-1.5 bg-accent-primary/10 hover:bg-accent-primary/20 text-accent-primary text-[12px] font-medium rounded transition-colors flex items-center gap-1.5"
+                                            >
+                                                <Plus size={14} /> Add Shortcut
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar space-y-3">
+                                        {/* System shortcut - Send Image */}
+                                        <div className={`p-4 bg-bg-elevated/50 border rounded-lg flex items-center justify-between transition-all ${recordingId === 'image-shortcut' ? 'border-accent-primary ring-1 ring-accent-primary' : 'border-border/50'}`}>
+                                            <div>
+                                                <h4 className="text-[13px] font-medium text-fg-primary mb-1">Send Image</h4>
+                                                <p className="text-[11px] text-fg-faint">Shortcut to trigger image paste from phone.</p>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <div className={`px-3 py-1.5 bg-bg-base border rounded text-[12px] font-mono min-w-[80px] text-center ${recordingId === 'image-shortcut' ? 'border-accent-primary text-accent-primary' : 'border-border text-fg-muted'}`}>
+                                                    {recordingId === 'image-shortcut' ? 'Press keys...' : settings.imageShortcut.join(' + ')}
+                                                </div>
+                                                <button
+                                                    onClick={() => recordingId === 'image-shortcut' ? setRecordingId(null) : startRecording('image-shortcut')}
+                                                    className={`px-3 py-1.5 rounded text-[11px] font-medium transition-colors ${recordingId === 'image-shortcut'
+                                                        ? 'bg-status-error text-white hover:bg-status-error/90'
+                                                        : 'bg-bg-surface border border-border text-fg-primary hover:border-accent-primary'
+                                                        }`}
+                                                >
+                                                    {recordingId === 'image-shortcut' ? 'Stop' : 'Rebind'}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {settings.keyboardShortcuts.length === 0 && (
+                                            <p className="text-[12px] text-fg-faint italic text-center py-8">No custom shortcuts defined yet.</p>
+                                        )}
+
+                                        {settings.keyboardShortcuts.map((shortcut) => (
+                                            <div key={shortcut.id} className={`p-3 bg-bg-elevated border rounded-lg flex items-center gap-4 group transition-all ${recordingId === shortcut.id ? 'border-accent-primary ring-1 ring-accent-primary' : 'border-border hover:border-accent-primary/30'}`}>
+                                                <div className="w-1/3 min-w-[120px]">
+                                                    <input
+                                                        type="text"
+                                                        value={shortcut.name}
+                                                        onChange={(e) => updateShortcut(shortcut.id, { name: e.target.value })}
+                                                        className="w-full bg-transparent border-none text-fg-primary text-[13px] font-medium focus:outline-none placeholder:text-fg-faint/50"
+                                                        placeholder="Shortcut Name"
+                                                    />
+                                                </div>
+                                                <div className="flex-1 flex items-center justify-end gap-3">
+                                                    <div className={`px-3 py-1.5 bg-bg-base border rounded text-[12px] font-mono min-w-[80px] text-center ${recordingId === shortcut.id ? 'border-accent-primary text-accent-primary' : 'border-border text-fg-muted'}`}>
+                                                        {recordingId === shortcut.id ? 'Press keys...' : shortcut.keys.join(' + ')}
+                                                    </div>
+                                                    <button
+                                                        onClick={() => recordingId === shortcut.id ? setRecordingId(null) : startRecording(shortcut.id)}
+                                                        className={`px-3 py-1.5 rounded text-[11px] font-medium transition-colors ${recordingId === shortcut.id
+                                                            ? 'bg-status-error text-white hover:bg-status-error/90'
+                                                            : 'bg-bg-surface border border-border text-fg-primary hover:border-accent-primary'
+                                                            }`}
+                                                    >
+                                                        {recordingId === shortcut.id ? 'Stop' : 'Record'}
+                                                    </button>
+                                                </div>
+                                                <button
+                                                    onClick={() => removeShortcut(shortcut.id)}
+                                                    className="p-2 text-fg-faint hover:text-status-error hover:bg-status-error/10 rounded transition-all opacity-0 group-hover:opacity-100"
+                                                    title="Delete Shortcut"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

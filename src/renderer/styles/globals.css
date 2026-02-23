@@ -241,3 +241,14 @@ body {
 .resize-active * {
   user-select: none !important;
 }
+
+/* 
+ * Monaco Editor Fix: Disable pointer events on hover widgets (tooltips)
+ * This prevents the tooltip from flickering and blocking clicks on the 
+ * underlying button (e.g. Find/Replace widget close button).
+ * See: https://github.com/microsoft/monaco-editor/issues/5208
+ */
+.monaco-hover,
+.monaco-custom-hover {
+  pointer-events: none !important;
+}
