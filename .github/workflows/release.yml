@@ -7,42 +7,21 @@ on:
   push:
     branches:
       - main
-    tags:
-      - 'v*' # Trigger build when you push a version tag like v0.1.0
   workflow_dispatch: # Allows you to manually trigger the build from the GitHub "Actions" tab
 
 jobs:
-  create-tag:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out git repository
-        uses: actions/checkout@v4
-
-      - name: Check version and create tag
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          if git ls-remote --tags origin | grep -q "refs/tags/v$VERSION"; then
-            echo "Tag v$VERSION already exists. Skipping tag creation."
-          else
-            echo "Creating tag v$VERSION"
-            git config --global user.name "github-actions[bot]"
-            git config --global user.email "github-actions[bot]@users.noreply.github.com"
-            git tag "v$VERSION"
-            # We push using your personal token so that GitHub registers it as a user action
-            # and properly triggers the 'tags' workflow event below.
-            git push "https://${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git" "v$VERSION"
-          fi
-
   release:
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
+
     steps:
       - name: Check out git repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -53,19 +32,31 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Create GitHub Release
+      - name: Build Electron App
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: npm run build && npx electron-builder --publish never
+
+      - name: Get version from package.json
+        id: pkg
+        shell: bash
+        run: echo "version=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
+
+      - name: Create tag and GitHub Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/v')
         with:
+          tag_name: v${{ steps.pkg.outputs.version }}
+          name: v${{ steps.pkg.outputs.version }}
           generate_release_notes: true
           draft: false
           prerelease: false
-
-      - name: Build and Release
+          files: |
+            release/*.exe
+            release/*.dmg
+            release/*.AppImage
+            release/*.yml
+            release/*.yaml
+            release/*.blockmap
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          # Disable code signing for macOS to prevent 134 errors on runners without certs
-          CSC_IDENTITY_AUTO_DISCOVERY: false 
-          # Increase memory limit to prevent "heap out of memory" errors
-          NODE_OPTIONS: --max-old-space-size=4096
-        run: npm run build && npx electron-builder --publish always
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
