@@ -1,6 +1,6 @@
 {
   "name": "enviroterm",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A cross-platform application for managing multiple terminal sessions",
   "main": "dist/main/index.js",
   "scripts": {

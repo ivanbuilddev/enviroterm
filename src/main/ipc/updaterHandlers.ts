@@ -3,6 +3,7 @@ import { autoUpdater } from 'electron-updater';
 
 export function registerUpdaterHandlers(mainWindow: BrowserWindow | null) {
     // Configure electron-updater
+    autoUpdater.forceDevUpdateConfig = true; // Let the user test checking for updates without packaging
     autoUpdater.autoDownload = false; // We'll handle download manually via IPC, or change to true if preferred
 
     // Set the GitHub feed provider (though the package.json publish config usually covers this, it's safer to be explicit)

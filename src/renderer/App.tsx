@@ -10,6 +10,7 @@ import { WorkspacePopover } from './components/Sidebar/WorkspacePopover';
 import { FileExplorer } from './components/FileExplorer/FileExplorer';
 import { CodeEditor } from './components/CodeEditor/CodeEditor';
 import { Download } from 'lucide-react';
+import { Toast, ToastType } from './components/UI/Toast';
 
 function App() {
   if (!window.electronAPI) {
@@ -52,6 +53,7 @@ function App() {
   const [workspaceSettings, setWorkspaceSettings] = useState<{ id: string; name: string } | null>(null);
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [updateStatus, setUpdateStatus] = useState<'none' | 'checking' | 'available' | 'downloaded'>('none');
+  const [toastMessage, setToastMessage] = useState<{ message: string; type?: ToastType; id: number } | null>(null);
 
   const bottomPanelRefs = useRef<Record<string, BottomPanelHandle | null>>({});
 
@@ -153,10 +155,19 @@ function App() {
     const unsubs = [
       window.electronAPI.updater.onStatusChange((status: string) => {
         setUpdateStatus(status as any);
+        if (status === 'up-to-date') {
+          setToastMessage({ message: 'You are using the latest version', type: 'success', id: Date.now() });
+          setTimeout(() => setUpdateStatus('none'), 3000);
+        } else if (status === 'available') {
+          setToastMessage({ message: 'Update available. Downloading...', type: 'info', id: Date.now() });
+        } else if (status === 'downloaded') {
+          setToastMessage({ message: 'Update downloaded. Ready to install.', type: 'info', id: Date.now() });
+        }
       }),
       window.electronAPI.updater.onError((err: string) => {
         console.error('Updater error:', err);
         setUpdateStatus('none');
+        setToastMessage({ message: `Update error: ${err}`, type: 'error', id: Date.now() });
       })
     ];
 
@@ -271,17 +282,20 @@ function App() {
               onClick={() => {
                 if (updateStatus === 'downloaded') {
                   window.electronAPI.updater.install();
+                } else if (updateStatus !== 'checking' && updateStatus !== 'available') {
+                  window.electronAPI.updater.check();
+                  setUpdateStatus('checking');
                 }
               }}
-              disabled={updateStatus !== 'downloaded'}
-              className={`p-1.5 transition-colors rounded ${updateStatus === 'downloaded'
-                ? 'text-accent-primary hover:bg-accent-primary/10 cursor-pointer'
-                : 'text-fg-muted cursor-default'
+              className={`p-1.5 transition-colors rounded ${updateStatus === 'downloaded' ? 'text-accent-primary hover:bg-accent-primary/10 cursor-pointer' :
+                updateStatus === 'available' ? 'text-accent-primary hover:bg-accent-primary/10 cursor-wait' :
+                  updateStatus === 'checking' ? 'text-fg-muted cursor-wait' :
+                    'text-fg-muted hover:text-fg-primary hover:bg-white/10 cursor-pointer'
                 }`}
               title={
                 updateStatus === 'downloaded' ? 'Install Update' :
                   updateStatus === 'checking' ? 'Checking for updates...' :
-                    updateStatus === 'available' ? 'Downloading update...' : 'App up to date'
+                    updateStatus === 'available' ? 'Downloading update...' : 'Check for updates'
               }
             >
               <Download className={`w-3.5 h-3.5 ${updateStatus === 'checking' || updateStatus === 'available' ? 'animate-pulse' : ''}`} />
@@ -578,6 +592,16 @@ function App() {
         </span>
         <span>EnviroTerm</span>
       </footer>
+
+      {/* Global Toast */}
+      {toastMessage && (
+        <Toast
+          key={toastMessage.id}
+          message={toastMessage.message}
+          type={toastMessage.type}
+          onClose={() => setToastMessage(null)}
+        />
+      )}
     </div>
   )
 }
