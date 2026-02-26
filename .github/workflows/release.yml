@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Check out git repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required to fetch tags
 
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -28,6 +30,22 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: Check version and create tag
+        id: create_tag
+        if: matrix.os == 'ubuntu-latest' # Only run once
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if git ls-remote --tags origin | grep -q "refs/tags/v$VERSION"; then
+            echo "Tag v$VERSION already exists. Skipping tag creation."
+          else
+            echo "Creating tag v$VERSION"
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git tag "v$VERSION"
+            git push origin "v$VERSION"
+            echo "created_tag=v$VERSION" >> $GITHUB_ENV
+          fi
 
       - name: Build and Release
         env:

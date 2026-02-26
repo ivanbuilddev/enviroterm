@@ -248,7 +248,7 @@ function App() {
   return (
     <div
       className="min-h-screen bg-bg-base text-fg-primary flex flex-col h-screen overflow-hidden"
-      onContextMenu={(e) => {
+      onContextMenu={() => {
         // Only open context menu if clicking on the main content area (not sidebar/header if handled there)
         // But the prompt says "anywhere inside the canvas". 
         // We'll let specific components stopPropagation if needed.
