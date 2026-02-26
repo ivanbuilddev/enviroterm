@@ -41,6 +41,21 @@ export function registerWorkspaceHandlers(): void {
 
   ipcMain.handle('workspaces:delete', (_, id: string) => WorkspaceStore.deleteWorkspace(id));
   ipcMain.handle('workspaces:reorder', (_, ids: string[]) => WorkspaceStore.reorderWorkspaces(ids));
+  ipcMain.handle('workspaces:setExplorerOpen', (_, id: string, isOpen: boolean) => {
+    WorkspaceStore.setExplorerOpen(id, isOpen);
+  });
+  ipcMain.handle('workspaces:setBottomPanelOpen', (_, id: string, isOpen: boolean) => {
+    WorkspaceStore.setBottomPanelOpen(id, isOpen);
+  });
+  ipcMain.handle('workspaces:setBrowserPanelOpen', (_, id: string, isOpen: boolean) => {
+    WorkspaceStore.setBrowserPanelOpen(id, isOpen);
+  });
+  ipcMain.handle('workspaces:setEditorWidth', (_, id: string, width: number) => {
+    WorkspaceStore.setEditorWidth(id, width);
+  });
+  ipcMain.handle('workspaces:setActiveFilePath', (_, id: string, path: string | null) => {
+    WorkspaceStore.setActiveFilePath(id, path);
+  });
   ipcMain.handle('workspaces:openInVSCode', (_, folderPath: string) => {
     const { exec } = require('child_process');
     exec(`code "${folderPath}"`);
@@ -67,5 +82,9 @@ export function registerWorkspaceHandlers(): void {
 
   ipcMain.handle('sessions:delete', (_, id: string) => {
     WorkspaceStore.deleteSession(id);
+  });
+
+  ipcMain.handle('sessions:updateGeometry', (_, id: string, geometry: { x: number, y: number, width: number, height: number }) => {
+    WorkspaceStore.updateSessionGeometry(id, geometry);
   });
 }

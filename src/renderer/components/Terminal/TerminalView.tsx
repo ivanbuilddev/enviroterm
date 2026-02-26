@@ -27,7 +27,7 @@ function manualFit(terminal: Terminal | null, container: HTMLDivElement | null):
   // Get the actual rendered cell dimensions from the core renderer
   // Add safety check for _renderService
   if (!core._renderService) return null;
-  
+
   const cellWidth = core._renderService.dimensions?.css?.cell?.width;
   const cellHeight = core._renderService.dimensions?.css?.cell?.height;
 
@@ -79,6 +79,8 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
     };
   }, []);
 
+  const [retryRender, setRetryRender] = useState(0);
+
   // 2. Open and attach terminal when container is ready
   useEffect(() => {
     if (!term || !containerRef.current || isOpened) return;
@@ -87,10 +89,14 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
 
     // Crucial Guard: Wait until container actually has size
     if (container.clientWidth === 0 || container.clientHeight === 0) {
-      const timer = setTimeout(() => {
-        setIsOpened(false);
-      }, 100);
-      return () => clearTimeout(timer);
+      const observer = new ResizeObserver(() => {
+        if (container.clientWidth > 0 && container.clientHeight > 0) {
+          observer.disconnect();
+          setRetryRender(prev => prev + 1);
+        }
+      });
+      observer.observe(container);
+      return () => observer.disconnect();
     }
 
     try {
@@ -110,7 +116,7 @@ export function TerminalView({ sessionId, sessionName, folderPath, isFocused, ru
     } catch (e) {
       console.warn('Deferred terminal open failed', e);
     }
-  }, [term, isOpened, sessionId, isReadOnlyResize]);
+  }, [term, isOpened, sessionId, isReadOnlyResize, retryRender]);
 
   // Handle mobile scaling (Mobile only)
   // Scales the terminal to fit phone screen based on desktop terminal width

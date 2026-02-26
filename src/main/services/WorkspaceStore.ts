@@ -122,6 +122,51 @@ export const WorkspaceStore = {
     store.set('workspaces', [...reordered, ...missing]);
   },
 
+  setExplorerOpen(id: string, isOpen: boolean): void {
+    const workspaces = store.get('workspaces');
+    const index = workspaces.findIndex(w => w.id === id);
+    if (index !== -1) {
+      workspaces[index].isExplorerOpen = isOpen;
+      store.set('workspaces', workspaces);
+    }
+  },
+
+  setBottomPanelOpen(id: string, isOpen: boolean): void {
+    const workspaces = store.get('workspaces');
+    const index = workspaces.findIndex(w => w.id === id);
+    if (index !== -1) {
+      workspaces[index].isBottomPanelOpen = isOpen;
+      store.set('workspaces', workspaces);
+    }
+  },
+
+  setBrowserPanelOpen(id: string, isOpen: boolean): void {
+    const workspaces = store.get('workspaces');
+    const index = workspaces.findIndex(w => w.id === id);
+    if (index !== -1) {
+      workspaces[index].isBrowserPanelOpen = isOpen;
+      store.set('workspaces', workspaces);
+    }
+  },
+
+  setEditorWidth(id: string, width: number): void {
+    const workspaces = store.get('workspaces');
+    const index = workspaces.findIndex(w => w.id === id);
+    if (index !== -1) {
+      workspaces[index].editorWidth = width;
+      store.set('workspaces', workspaces);
+    }
+  },
+
+  setActiveFilePath(id: string, path: string | null): void {
+    const workspaces = store.get('workspaces');
+    const index = workspaces.findIndex(w => w.id === id);
+    if (index !== -1) {
+      workspaces[index].activeFilePath = path;
+      store.set('workspaces', workspaces);
+    }
+  },
+
   // --- SESSION METHODS ---
   getSessionsByWorkspace(workspaceId: string): Session[] {
     return store.get('sessions').filter(s => s.workspaceId === workspaceId);
@@ -156,6 +201,15 @@ export const WorkspaceStore = {
   deleteSession(id: string): void {
     const sessions = store.get('sessions').filter(s => s.id !== id);
     store.set('sessions', sessions);
+  },
+
+  updateSessionGeometry(id: string, geometry: { x: number, y: number, width: number, height: number }): void {
+    const sessions = store.get('sessions');
+    const index = sessions.findIndex(s => s.id === id);
+    if (index !== -1) {
+      sessions[index] = { ...sessions[index], ...geometry };
+      store.set('sessions', sessions);
+    }
   },
 
   resetSessions(): void {

@@ -11,6 +11,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     rename: (id: string, name: string) => ipcRenderer.invoke('workspaces:rename', id, name),
     delete: (id: string) => ipcRenderer.invoke('workspaces:delete', id),
     reorder: (ids: string[]) => ipcRenderer.invoke('workspaces:reorder', ids),
+    setExplorerOpen: (id: string, isOpen: boolean) => ipcRenderer.invoke('workspaces:setExplorerOpen', id, isOpen),
+    setBottomPanelOpen: (id: string, isOpen: boolean) => ipcRenderer.invoke('workspaces:setBottomPanelOpen', id, isOpen),
+    setBrowserPanelOpen: (id: string, isOpen: boolean) => ipcRenderer.invoke('workspaces:setBrowserPanelOpen', id, isOpen),
+    setEditorWidth: (id: string, width: number) => ipcRenderer.invoke('workspaces:setEditorWidth', id, width),
+    setActiveFilePath: (id: string, path: string | null) => ipcRenderer.invoke('workspaces:setActiveFilePath', id, path),
     openInVSCode: (path: string) => ipcRenderer.invoke('workspaces:openInVSCode', path),
     openInExplorer: (path: string) => ipcRenderer.invoke('workspaces:openInExplorer', path),
   },
@@ -19,6 +24,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     create: (workspaceId: string, name?: string, initialCommand?: string) => ipcRenderer.invoke('sessions:create', workspaceId, name, initialCommand),
     rename: (id: string, name: string) => ipcRenderer.invoke('sessions:rename', id, name),
     delete: (id: string) => ipcRenderer.invoke('sessions:delete', id),
+    updateGeometry: (id: string, geometry: { x: number, y: number, width: number, height: number }) =>
+      ipcRenderer.invoke('sessions:updateGeometry', id, geometry),
     onCreated: (callback: (session: { id: string; workspaceId: string; name: string; lastAccessedAt: number; createdAt: number }) => void) => {
       const handler = (_event: IpcRendererEvent, session: { id: string; workspaceId: string; name: string; lastAccessedAt: number; createdAt: number }) => callback(session);
       ipcRenderer.on('sessions:created', handler);

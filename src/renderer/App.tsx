@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Activity } from 'react';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { TerminalManager } from './components/Terminal/TerminalManager';
 import { BottomPanel, BottomPanelHandle } from './components/BottomPanel/BottomPanel';
@@ -20,12 +20,17 @@ function App() {
     workspaces,
     activeWorkspaceId,
     activeWorkspace,
-    sessions,
+    sessionsByWorkspace,
     isLoading,
     createWorkspace,
     selectWorkspace,
     deleteWorkspace,
     reorderWorkspaces,
+    setExplorerOpen,
+    setBottomPanelOpen,
+    setBrowserPanelOpen,
+    setEditorWidth,
+    setWorkspaceActiveFilePath,
     openInVSCode,
     openInExplorer,
     createSession,
@@ -36,7 +41,7 @@ function App() {
 
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [isExplorerVisible, setIsExplorerVisible] = useState(false);
-  const [editorWidth, setEditorWidth] = useState(600);
+  const [editorWidth, setEditorWidthState] = useState(600);
   const [isResizingEditor, setIsResizingEditor] = useState(false);
   const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
   const [activeFileContent, setActiveFileContent] = useState<string>('');
@@ -48,7 +53,7 @@ function App() {
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [updateStatus, setUpdateStatus] = useState<'none' | 'checking' | 'available' | 'downloaded'>('none');
 
-  const bottomPanelRef = useRef<BottomPanelHandle>(null);
+  const bottomPanelRefs = useRef<Record<string, BottomPanelHandle | null>>({});
 
   const handleSelectSession = (workspaceId: string, sessionId: string) => {
     selectWorkspace(workspaceId);
@@ -61,9 +66,22 @@ function App() {
     setWorkspaceSettings({ id, name });
   };
 
-  const handleCreateSessionForWorkspace = (workspaceId: string, name: string) => {
+  const handleCreateSession = async (name?: string, initialCommand?: string) => {
+    const newSession = await createSession(name, initialCommand);
+    if (newSession) {
+      setFocusedSessionId(newSession.id);
+      setTimeout(() => setFocusedSessionId(null), 500);
+    }
+    return newSession;
+  };
+
+  const handleCreateSessionForWorkspace = async (workspaceId: string, name: string) => {
     // Empty initial command relies on backend default
-    createSessionForWorkspace(workspaceId, name, '');
+    const newSession = await createSessionForWorkspace(workspaceId, name, '');
+    if (newSession && activeWorkspaceId === workspaceId) {
+      setFocusedSessionId(newSession.id);
+      setTimeout(() => setFocusedSessionId(null), 500);
+    }
   };
 
   const handleRunWorkspaceCommand = async (workspaceId: string, name: string, command: string) => {
@@ -75,18 +93,24 @@ function App() {
     }
 
     setIsBottomPanelVisible(true);
+    if (activeWorkspaceId) {
+      setBottomPanelOpen(activeWorkspaceId, true);
+    }
     // Give it a tick to ensure it's visible if it wasn't
     setTimeout(() => {
-      bottomPanelRef.current?.createNewTab(name, command, targetWorkspace.path);
+      bottomPanelRefs.current[workspaceId]?.createNewTab(name, command, targetWorkspace.path);
     }, 50);
   };
 
   const handleRunCommand = (command: string) => {
     setIsBottomPanelVisible(true);
-    // Give it a tick to ensure it's visible if it wasn't
-    setTimeout(() => {
-      bottomPanelRef.current?.createNewTab('External Cmd', command);
-    }, 50);
+    if (activeWorkspaceId) {
+      setBottomPanelOpen(activeWorkspaceId, true);
+      // Give it a tick to ensure it's visible if it wasn't
+      setTimeout(() => {
+        bottomPanelRefs.current[activeWorkspaceId]?.createNewTab('External Cmd', command);
+      }, 50);
+    }
   };
 
   const handleFileSelect = async (file: any) => {
@@ -95,6 +119,9 @@ function App() {
       const content = await window.electronAPI.files.readFile(file.path);
       setActiveFilePath(file.path);
       setActiveFileContent(content);
+      if (activeWorkspaceId) {
+        setWorkspaceActiveFilePath(activeWorkspaceId, file.path);
+      }
     } catch (err) {
       console.error('Failed to read file:', err);
     }
@@ -112,6 +139,9 @@ function App() {
   const closeEditor = () => {
     setActiveFilePath(null);
     setActiveFileContent('');
+    if (activeWorkspaceId) {
+      setWorkspaceActiveFilePath(activeWorkspaceId, null);
+    }
   };
 
   useEffect(() => {
@@ -133,6 +163,47 @@ function App() {
     return () => unsubs.forEach(unsub => unsub());
   }, []);
 
+  const previousWorkspaceIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!activeWorkspace) return;
+
+    if (activeWorkspace.id !== previousWorkspaceIdRef.current) {
+      // Workspace changed, apply its saved state
+      setIsExplorerVisible(activeWorkspace.isExplorerOpen ?? false);
+      setIsBottomPanelVisible(activeWorkspace.isBottomPanelOpen ?? false);
+      setIsBrowserPanelVisible(activeWorkspace.isBrowserPanelOpen ?? false);
+      setEditorWidthState(activeWorkspace.editorWidth ?? 600);
+
+      // Handle file loading if there's an active file path
+      const path = activeWorkspace.activeFilePath;
+      setActiveFilePath(path ?? null);
+      if (path) {
+        window.electronAPI.files.readFile(path)
+          .then(content => {
+            setActiveFileContent(content);
+          })
+          .catch(err => {
+            console.error('Failed to restore active file for workspace:', err);
+            setActiveFilePath(null);
+            setActiveFileContent('');
+          });
+      } else {
+        setActiveFileContent('');
+      }
+
+      previousWorkspaceIdRef.current = activeWorkspace.id;
+    }
+  }, [activeWorkspace]);
+
+  // Local setter that also saves to workspace
+  const handleSetEditorWidth = (width: number) => {
+    setEditorWidthState(width);
+    if (activeWorkspaceId) {
+      setEditorWidth(activeWorkspaceId, width);
+    }
+  };
+
   useEffect(() => {
     if (!isResizingEditor) return;
 
@@ -148,7 +219,7 @@ function App() {
 
       const newWidth = e.clientX - sidebarWidth - explorerWidth;
 
-      setEditorWidth(Math.max(200, Math.min(newWidth, document.body.clientWidth * 0.8)));
+      handleSetEditorWidth(Math.max(200, Math.min(newWidth, document.body.clientWidth * 0.8)));
     };
 
     const handleMouseUp = () => {
@@ -204,8 +275,8 @@ function App() {
               }}
               disabled={updateStatus !== 'downloaded'}
               className={`p-1.5 transition-colors rounded ${updateStatus === 'downloaded'
-                  ? 'text-accent-primary hover:bg-accent-primary/10 cursor-pointer'
-                  : 'text-fg-muted cursor-default'
+                ? 'text-accent-primary hover:bg-accent-primary/10 cursor-pointer'
+                : 'text-fg-muted cursor-default'
                 }`}
               title={
                 updateStatus === 'downloaded' ? 'Install Update' :
@@ -263,11 +334,28 @@ function App() {
               onOpenInExplorer={openInExplorer}
               onRunCommand={handleRunWorkspaceCommand}
               onSelectSession={handleSelectSession}
-              onCreateSession={() => createSession(`Terminal ${sessions.length + 1}`)}
+              onCreateSession={() => {
+                if (activeWorkspaceId) {
+                  const wsSessions = sessionsByWorkspace[activeWorkspaceId] || [];
+                  handleCreateSession(`Terminal ${wsSessions.length + 1}`);
+                }
+              }}
               onCreateSessionForWorkspace={handleCreateSessionForWorkspace}
-              onToggleBottomPanel={() => setIsBottomPanelVisible(!isBottomPanelVisible)}
+              onToggleBottomPanel={() => {
+                const willBeVisible = !isBottomPanelVisible;
+                setIsBottomPanelVisible(willBeVisible);
+                if (activeWorkspaceId) {
+                  setBottomPanelOpen(activeWorkspaceId, willBeVisible);
+                }
+              }}
               isBottomPanelVisible={isBottomPanelVisible}
-              onToggleBrowserPanel={() => setIsBrowserPanelVisible(!isBrowserPanelVisible)}
+              onToggleBrowserPanel={() => {
+                const willBeVisible = !isBrowserPanelVisible;
+                setIsBrowserPanelVisible(willBeVisible);
+                if (activeWorkspaceId) {
+                  setBrowserPanelOpen(activeWorkspaceId, willBeVisible);
+                }
+              }}
               isBrowserPanelVisible={isBrowserPanelVisible}
               onToggleExplorer={() => {
                 const willBeVisible = !isExplorerVisible;
@@ -275,6 +363,12 @@ function App() {
                 if (!willBeVisible) {
                   setActiveFilePath(null);
                   setActiveFileContent('');
+                  if (activeWorkspaceId) {
+                    setWorkspaceActiveFilePath(activeWorkspaceId, null);
+                  }
+                }
+                if (activeWorkspaceId) {
+                  setExplorerOpen(activeWorkspaceId, willBeVisible);
                 }
               }}
               isExplorerVisible={isExplorerVisible}
@@ -284,100 +378,122 @@ function App() {
           </div>
         </div>
 
-        {/* File Explorer Panel */}
-        {isExplorerVisible && (
-          <div className="w-64 border-r border-border bg-bg-surface flex flex-col overflow-hidden">
-            <FileExplorer
-              rootPath={activeWorkspace?.path || ''}
-              onFileSelect={handleFileSelect}
-              activeFilePath={activeFilePath}
-            />
-          </div>
-        )}
-
         <main className="flex-1 flex overflow-hidden">
-          {/* Center content area (canvas + bottom panel) */}
-          <div
-            className="flex-1 flex flex-col overflow-hidden relative"
-            onContextMenu={(e) => {
-              e.preventDefault();
-              if (activeWorkspace) {
-                setContextMenuPos({ x: e.clientX, y: e.clientY });
-              }
-            }}
-          >
-            {/* Canvas area */}
-            <div className="flex-1 flex overflow-hidden relative">
-              {isLoading ? (
-                <div className="flex-1 flex items-center justify-center h-full">
-                  <p className="text-fg-muted animate-pulse">Initializing workspace...</p>
+          {/* Workspaces Area */}
+          {workspaces.map(workspace => (
+            <div
+              key={workspace.id}
+              className="flex-1 flex flex-col overflow-hidden relative w-full h-full"
+              style={{ display: activeWorkspaceId === workspace.id ? 'flex' : 'none' }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                if (activeWorkspace) {
+                  setContextMenuPos({ x: e.clientX, y: e.clientY });
+                }
+              }}
+            >
+              {/* File Explorer Panel - use Activity to preserve state */}
+              <Activity mode={isExplorerVisible ? "visible" : "hidden"}>
+                <div style={{ display: isExplorerVisible ? 'flex' : 'none' }} className="w-64 border-r border-border bg-bg-surface flex-col overflow-hidden absolute left-0 top-0 bottom-0 z-40">
+                  <FileExplorer
+                    rootPath={workspace.path}
+                    onFileSelect={handleFileSelect}
+                    activeFilePath={workspace.activeFilePath || null}
+                  />
                 </div>
-              ) : (
-                <div className="flex-1 flex h-full overflow-hidden">
+              </Activity>
 
-                  {/* Editor Area - resizable side panel (Now on Left) */}
-                  {activeFilePath && (
-                    <>
-                      {/* Editor Panel */}
-                      <div
-                        className="flex flex-col bg-bg-base border-r border-border shrink-0"
-                        style={{ width: editorWidth }}
-                      >
-                        <div className="h-8 bg-bg-elevated border-b border-border flex items-center justify-between px-2 flex-shrink-0">
-                          <span className="text-xs text-fg-muted truncate max-w-[calc(100%-60px)]">{activeFilePath}</span>
-                          <button onClick={closeEditor} className="text-xs text-fg-muted hover:text-fg-primary px-2 py-1 rounded hover:bg-bg-hover">Close</button>
-                        </div>
-                        <div className="flex-1 overflow-hidden relative">
-                          <CodeEditor
-                            filePath={activeFilePath}
-                            initialContent={activeFileContent}
-                            onSave={handleFileSave}
+              {/* Center content area (canvas + bottom panel) */}
+              <div className={`flex-1 flex flex-col overflow-hidden relative ${isExplorerVisible ? 'ml-64' : 'ml-0'}`}>
+                {/* Canvas area */}
+                <div className="flex-1 flex overflow-hidden relative">
+                  {isLoading ? (
+                    <div className="flex-1 flex items-center justify-center h-full">
+                      <p className="text-fg-muted animate-pulse">Initializing workspace...</p>
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex h-full overflow-hidden">
+
+                      {/* Editor Area - resizable side panel (Now on Left) */}
+                      {workspace.activeFilePath && activeFilePath === workspace.activeFilePath && (
+                        <>
+                          {/* Editor Panel */}
+                          <div
+                            className="flex flex-col bg-bg-base border-r border-border shrink-0"
+                            style={{ width: editorWidth }}
+                          >
+                            <div className="h-8 bg-bg-elevated border-b border-border flex items-center justify-between px-2 flex-shrink-0">
+                              <span className="text-xs text-fg-muted truncate max-w-[calc(100%-60px)]">{activeFilePath}</span>
+                              <button onClick={closeEditor} className="text-xs text-fg-muted hover:text-fg-primary px-2 py-1 rounded hover:bg-bg-hover">Close</button>
+                            </div>
+                            <div className="flex-1 overflow-hidden relative">
+                              <CodeEditor
+                                filePath={activeFilePath}
+                                initialContent={activeFileContent}
+                                onSave={handleFileSave}
+                              />
+                              {/* Overlay during resize to prevent iframe capturing events */}
+                              {isResizingEditor && <div className="absolute inset-0 z-50 bg-transparent" />}
+                            </div>
+                          </div>
+
+                          {/* Resize Handle */}
+                          <div
+                            className="w-1 bg-border hover:bg-accent-primary cursor-col-resize transition-colors z-10 flex-shrink-0"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setIsResizingEditor(true);
+                            }}
                           />
-                          {/* Overlay during resize to prevent iframe capturing events */}
-                          {isResizingEditor && <div className="absolute inset-0 z-50 bg-transparent" />}
-                        </div>
+                        </>
+                      )}
+
+                      {/* Terminal Area - always visible, takes remaining space */}
+                      <div className="flex-1 h-full flex flex-col min-w-0">
+                        <TerminalManager
+                          sessions={sessionsByWorkspace[workspace.id] || []}
+                          activeWorkspace={workspace}
+                          isVisible={activeWorkspaceId === workspace.id}
+                          focusedSessionId={focusedSessionId}
+                          onRenameSession={renameSession}
+                          onCreateSession={handleCreateSession}
+                          onDeleteSession={deleteSession}
+                        />
                       </div>
-
-                      {/* Resize Handle */}
-                      <div
-                        className="w-1 bg-border hover:bg-accent-primary cursor-col-resize transition-colors z-10 flex-shrink-0"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          setIsResizingEditor(true);
-                        }}
-                      />
-                    </>
+                    </div>
                   )}
-
-                  {/* Terminal Area - always visible, takes remaining space */}
-                  <div className="flex-1 h-full flex flex-col min-w-0">
-                    <TerminalManager
-                      sessions={sessions}
-                      activeWorkspace={activeWorkspace}
-                      focusedSessionId={focusedSessionId}
-                      onRenameSession={renameSession}
-                      onCreateSession={createSession}
-                      onDeleteSession={deleteSession}
-                    />
-                  </div>
                 </div>
-              )}
+                {/* Bottom panel - specific to this workspace */}
+                <div style={{ display: isBottomPanelVisible && activeWorkspaceId === workspace.id ? 'block' : 'none' }}>
+                  <BottomPanel
+                    isVisible={isBottomPanelVisible && activeWorkspaceId === workspace.id}
+                    onClose={() => {
+                      setIsBottomPanelVisible(false);
+                      setBottomPanelOpen(workspace.id, false);
+                    }}
+                    currentWorkspace={workspace.path}
+                    currentWorkspaceId={workspace.id}
+                    ref={(el) => {
+                      if (el) bottomPanelRefs.current[workspace.id] = el;
+                    }}
+                  />
+                </div>
+              </div>
             </div>
-            {/* Bottom panel - between sidebar and browser panel */}
-            <BottomPanel
-              isVisible={isBottomPanelVisible}
-              onClose={() => setIsBottomPanelVisible(false)}
-              currentWorkspace={activeWorkspace?.path ?? null}
-              currentWorkspaceId={activeWorkspaceId ?? undefined}
-              ref={bottomPanelRef}
-            />
-          </div>
+          ))}
           {/* Browser panel on the right */}
-          <BrowserPanel
-            isVisible={isBrowserPanelVisible}
-            onClose={() => setIsBrowserPanelVisible(false)}
-            onRunCommand={handleRunCommand}
-          />
+          <Activity mode={isBrowserPanelVisible ? "visible" : "hidden"}>
+            <BrowserPanel
+              isVisible={isBrowserPanelVisible}
+              onClose={() => {
+                setIsBrowserPanelVisible(false);
+                if (activeWorkspaceId) {
+                  setBrowserPanelOpen(activeWorkspaceId, false);
+                }
+              }}
+              onRunCommand={handleRunCommand}
+            />
+          </Activity>
         </main>
       </div>
 
@@ -402,13 +518,14 @@ function App() {
           >
             <WorkspacePopover
               workspace={activeWorkspace}
-              sessions={sessions}
+              sessions={sessionsByWorkspace[activeWorkspace.id] || []}
               onSelectSession={(sessionId) => {
                 handleSelectSession(activeWorkspace.id, sessionId);
                 setContextMenuPos(null);
               }}
               onCreateSession={() => {
-                createSession(`Terminal ${sessions.length + 1}`);
+                const wsSessions = sessionsByWorkspace[activeWorkspace.id] || [];
+                handleCreateSession(`Terminal ${wsSessions.length + 1}`);
                 setContextMenuPos(null);
               }}
               onDeleteWorkspace={() => {
@@ -457,7 +574,7 @@ function App() {
       {/* Status Bar */}
       <footer className="bg-bg-base border-t border-border px-4 py-1 text-[9px] text-fg-faint flex justify-between uppercase tracking-[0.2em]">
         <span>
-          {workspaces.length} Workspaces | {sessions.length} Active Sessions
+          {workspaces.length} Workspaces | {Object.values(sessionsByWorkspace).flat().length} Active Sessions
         </span>
         <span>EnviroTerm</span>
       </footer>

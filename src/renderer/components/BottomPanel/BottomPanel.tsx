@@ -7,6 +7,7 @@ export interface BottomPanelTab {
   name: string;
   initialCommand?: string;
   cwd?: string;
+  workspacePath: string;
 }
 
 interface BottomPanelProps {
@@ -40,33 +41,70 @@ export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
     });
 
     const createNewTab = useCallback((name?: string, initialCommand?: string, cwd?: string) => {
-      // Allow creation if cwd is provided OR currentWorkspace exists
       if (!currentWorkspace && !cwd) return;
 
+      const workspaceTabs = tabs.filter(t => t.workspacePath === (cwd || currentWorkspace!));
       const newTab: BottomPanelTab = {
-        id: `panel-tab-${Date.now()}`,
-        name: name || `Terminal ${tabs.length + 1}`,
+        id: `panel-tab-${crypto.randomUUID()}`,
+        name: name || `Terminal ${workspaceTabs.length + 1}`,
         initialCommand,
         cwd,
+        workspacePath: cwd || currentWorkspace!,
       };
       setTabs(prev => [...prev, newTab]);
       setActiveTabId(newTab.id);
-    }, [tabs.length, currentWorkspace]);
+    }, [currentWorkspace, tabs]);
 
     // Expose methods to parent
     useImperativeHandle(ref, () => ({
       createNewTab
     }), [createNewTab]);
 
-    // Create initial tab when panel opens and no tabs exist
+    // Create initial tab when panel opens and no tabs exist for current workspace
+    const initialTabCreatedRef = useRef(false);
     useEffect(() => {
-      if (isVisible && tabs.length === 0 && currentWorkspace) {
+      const workspaceTabs = tabs.filter(t => t.workspacePath === currentWorkspace);
+      if (isVisible && workspaceTabs.length === 0 && currentWorkspace && !initialTabCreatedRef.current) {
+        initialTabCreatedRef.current = true;
         createNewTab();
       }
-    }, [isVisible, currentWorkspace, tabs.length, createNewTab]);
+      if (workspaceTabs.length > 0) {
+        initialTabCreatedRef.current = false;
+      }
+    }, [isVisible, currentWorkspace, tabs, createNewTab]);
+
+    // Handle workspace switch - preserve terminal state, just switch active tab
+    const prevWorkspaceRef = useRef<string | null>(null);
+    const tabsRef = useRef<BottomPanelTab[]>([]);
+    tabsRef.current = tabs;
+
+    useEffect(() => {
+      if (currentWorkspace && currentWorkspace !== prevWorkspaceRef.current) {
+        // Workspace changed - switch to tabs for this workspace
+        // Don't kill terminals - preserve their state
+        const workspaceTabs = tabsRef.current.filter(t => t.workspacePath === currentWorkspace);
+        
+        if (workspaceTabs.length > 0) {
+          // Switch to the first tab of the new workspace
+          setActiveTabId(workspaceTabs[0].id);
+        } else {
+          // No tabs for this workspace yet - create one if panel is visible
+          setActiveTabId(null);
+          if (isVisible) {
+            // Small delay to ensure container has proper dimensions
+            setTimeout(() => {
+              createNewTab();
+            }, 50);
+          }
+        }
+      }
+      prevWorkspaceRef.current = currentWorkspace;
+    }, [currentWorkspace, isVisible, createNewTab]);
 
     const closeTab = useCallback((tabId: string, e: React.MouseEvent) => {
       e.stopPropagation();
+
+      const wasActiveTab = activeTabId === tabId;
 
       // Kill the terminal process
       window.electronAPI.terminal.kill(tabId);
@@ -74,19 +112,23 @@ export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
       setTabs(prev => {
         const newTabs = prev.filter(t => t.id !== tabId);
 
-        // If we closed the active tab, switch to another
-        if (activeTabId === tabId && newTabs.length > 0) {
-          const closedIndex = prev.findIndex(t => t.id === tabId);
-          const newActiveIndex = Math.min(closedIndex, newTabs.length - 1);
-          setActiveTabId(newTabs[newActiveIndex].id);
+        // If we closed the active tab, switch to another tab of the same workspace
+        if (wasActiveTab && newTabs.length > 0 && currentWorkspace) {
+          const workspaceTabs = newTabs.filter(t => t.workspacePath === currentWorkspace);
+          if (workspaceTabs.length > 0) {
+            setActiveTabId(workspaceTabs[0].id);
+          } else {
+            // No more tabs for current workspace
+            setActiveTabId(null);
+          }
         } else if (newTabs.length === 0) {
           setActiveTabId(null);
-          onClose(); // Close panel when no tabs left
+          onClose();
         }
 
         return newTabs;
       });
-    }, [activeTabId, onClose]);
+    }, [activeTabId, currentWorkspace, onClose, tabs]);
 
     // Resize handlers
     const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -122,15 +164,17 @@ export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
       document.addEventListener('mouseup', handleMouseUp);
     }, [height, handleMouseMove, handleMouseUp]);
 
-    // Cleanup on unmount
+    // Cleanup on unmount - kill all terminal processes
     useEffect(() => {
       return () => {
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
+        // Kill all terminal processes when unmounting
+        tabsRef.current.forEach(tab => {
+          window.electronAPI.terminal.kill(tab.id);
+        });
       };
     }, [handleMouseMove, handleMouseUp]);
-
-    if (!isVisible) return null;
 
     return (
       <div
@@ -151,7 +195,7 @@ export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
         {/* Tab bar */}
         <div className="flex items-center bg-bg-elevated border-b border-border min-h-[32px] select-none">
           <div className="flex items-center flex-1 overflow-x-auto">
-            {tabs.map(tab => (
+            {tabs.filter(t => t.workspacePath === currentWorkspace).map(tab => (
               <div
                 key={tab.id}
                 onClick={() => setActiveTabId(tab.id)}
@@ -183,7 +227,7 @@ export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
 
         {/* Terminal content area */}
         <div className="flex-1 overflow-hidden relative">
-          {tabs.map(tab => (
+          {tabs.filter(t => t.workspacePath === currentWorkspace).map(tab => (
             <div
               key={tab.id}
               className={`absolute inset-0 ${activeTabId === tab.id ? 'visible' : 'invisible'}`}
@@ -193,7 +237,6 @@ export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
                   sessionId={tab.id}
                   sessionName={tab.name}
                   folderPath={tab.cwd || currentWorkspace!}
-                  isVisible={activeTabId === tab.id}
                   isFocused={activeTabId === tab.id}
                   runInitialCommand={!!tab.initialCommand}
                   initialCommand={tab.initialCommand}
@@ -203,7 +246,7 @@ export const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(
             </div>
           ))}
 
-          {tabs.length === 0 && (
+          {tabs.filter(t => t.workspacePath === currentWorkspace).length === 0 && (
             <div className="flex items-center justify-center h-full text-fg-muted text-sm">
               {currentWorkspace ? 'No terminals open' : 'Select a workspace to open a terminal'}
             </div>

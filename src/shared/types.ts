@@ -7,6 +7,11 @@ export interface Workspace {
   textColor: string;        // Derived text color for contrast
   lastAccessedAt: number;   // Unix timestamp (ms) for sorting
   createdAt: number;        // Unix timestamp (ms)
+  isExplorerOpen?: boolean;
+  isBottomPanelOpen?: boolean;
+  isBrowserPanelOpen?: boolean;
+  editorWidth?: number;
+  activeFilePath?: string | null;
 }
 
 // Session data structure (Terminal windows)
@@ -17,6 +22,10 @@ export interface Session {
   initialCommand?: string;
   lastAccessedAt: number;
   createdAt: number;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
 }
 
 // Result from creating a workspace via folder picker
@@ -58,6 +67,11 @@ export interface ElectronAPI {
     rename: (id: string, name: string) => Promise<void>;
     delete: (id: string) => Promise<void>;
     reorder: (ids: string[]) => Promise<void>;
+    setExplorerOpen: (id: string, isOpen: boolean) => Promise<void>;
+    setBottomPanelOpen: (id: string, isOpen: boolean) => Promise<void>;
+    setBrowserPanelOpen: (id: string, isOpen: boolean) => Promise<void>;
+    setEditorWidth: (id: string, width: number) => Promise<void>;
+    setActiveFilePath: (id: string, path: string | null) => Promise<void>;
     openInVSCode: (path: string) => Promise<void>;
     openInExplorer: (path: string) => Promise<void>;
   };
@@ -66,6 +80,7 @@ export interface ElectronAPI {
     create: (workspaceId: string, name?: string, initialCommand?: string) => Promise<Session>;
     rename: (id: string, name: string) => Promise<void>;
     delete: (id: string) => Promise<void>;
+    updateGeometry: (id: string, geometry: { x: number, y: number, width: number, height: number }) => Promise<void>;
     onCreated: (callback: (session: Session) => void) => () => void;
   };
   terminal: {

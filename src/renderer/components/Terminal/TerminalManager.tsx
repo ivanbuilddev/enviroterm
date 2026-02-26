@@ -6,9 +6,10 @@ import { TerminalWindow } from './TerminalWindow';
 interface TerminalManagerProps {
   sessions: Session[];
   activeWorkspace: Workspace | null;
+  isVisible: boolean;
   focusedSessionId?: string | null;
   onRenameSession: (id: string, name: string) => Promise<void>;
-  onCreateSession: (name?: string) => Promise<void>;
+  onCreateSession: (name?: string) => Promise<any>;
   onDeleteSession: (id: string) => Promise<void>;
 }
 
@@ -22,6 +23,7 @@ interface WindowGeometry {
 export function TerminalManager({
   sessions,
   activeWorkspace,
+  isVisible,
   focusedSessionId,
   onRenameSession,
   onDeleteSession
@@ -48,8 +50,18 @@ export function TerminalManager({
   }, []);
 
   // Handle geometry updates from windows
+  const updateTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
+
   const handleGeometryChange = useCallback((id: string, geometry: WindowGeometry) => {
     windowGeometries.current[id] = geometry;
+
+    // Debounce the IPC call to save geometry
+    if (updateTimeoutRef.current[id]) {
+      clearTimeout(updateTimeoutRef.current[id]);
+    }
+    updateTimeoutRef.current[id] = setTimeout(() => {
+      window.electronAPI.sessions.updateGeometry(id, geometry);
+    }, 500);
   }, []);
 
   // Center canvas on focused session
@@ -189,8 +201,10 @@ export function TerminalManager({
               onClose={() => onDeleteSession(session.id)}
               onGeometryChange={handleGeometryChange}
               zIndex={zIndices[session.id] || 10}
-              initialX={windowOffsets[session.id]?.x}
-              initialY={windowOffsets[session.id]?.y}
+              initialX={session.x ?? windowOffsets[session.id]?.x}
+              initialY={session.y ?? windowOffsets[session.id]?.y}
+              initialWidth={session.width}
+              initialHeight={session.height}
               canvasOffset={canvasOffset}
               isAnchored={anchoredSessionIds.includes(session.id)}
               onToggleAnchor={() => {
@@ -205,7 +219,7 @@ export function TerminalManager({
                 sessionId={session.id}
                 sessionName={session.name}
                 folderPath={activeWorkspace.path}
-                isVisible={true}
+                isVisible={isVisible}
                 isFocused={session.id === focusedSessionId}
                 runInitialCommand={true}
                 initialCommand={session.initialCommand}

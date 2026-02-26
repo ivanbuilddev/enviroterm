@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Terminal, PanelBottom, Globe, Settings, FolderTree } from 'lucide-react';
 import { Workspace, Session } from '../../../shared/types';
@@ -53,11 +53,12 @@ export function Sidebar({
   onCreateSessionForWorkspace
 }: SidebarProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [popoverId, setPopoverId] = useState<string | null>(null);
   const [hoveredSessions, setHoveredSessions] = useState<Session[]>([]);
   const [popoverPos, setPopoverPos] = useState({ top: 0, left: 0 });
   const [remoteModalData, setRemoteModalData] = useState<{ id: string; path: string } | null>(null);
-  const popoverTimerRef = useRef<any>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     setDraggedId(id);
@@ -88,11 +89,11 @@ export function Sidebar({
     setDraggedId(null);
   };
 
-  const handleMouseEnter = async (e: React.MouseEvent, id: string) => {
-    clearTimeout(popoverTimerRef.current);
+  const handleContextMenu = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     setPopoverPos({ top: rect.top, left: rect.right + 8 });
-    setHoveredId(id);
+    setPopoverId(id);
     try {
       const sessions = await window.electronAPI.sessions.getByWorkspace(id);
       setHoveredSessions(sessions);
@@ -101,15 +102,27 @@ export function Sidebar({
     }
   };
 
-  const handleMouseLeave = () => {
-    popoverTimerRef.current = setTimeout(() => {
-      setHoveredId(null);
-      setHoveredSessions([]);
-    }, 100);
-  };
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (popoverId &&
+        popoverRef.current &&
+        !popoverRef.current.contains(e.target as Node) &&
+        sidebarRef.current &&
+        !sidebarRef.current.contains(e.target as Node)) {
+        setPopoverId(null);
+        setHoveredSessions([]);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [popoverId]);
 
   return (
-    <aside className="w-16 bg-bg-elevated border-r border-border flex flex-col items-center h-full z-[200] relative">
+    <aside
+      ref={sidebarRef}
+      className="w-16 bg-bg-elevated border-r border-border flex flex-col items-center h-full z-[200] relative"
+    >
       {/* Workspaces section - scrollable if needed */}
       <div className="flex flex-col items-center gap-2 w-full overflow-y-auto pt-3 pb-28">
         {workspaces.map(workspace => (
@@ -119,22 +132,23 @@ export function Sidebar({
             onDragStart={(e) => handleDragStart(e, workspace.id)}
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, workspace.id)}
-            onMouseEnter={(e) => handleMouseEnter(e, workspace.id)}
-            onMouseLeave={handleMouseLeave}
+            onContextMenu={(e) => handleContextMenu(e, workspace.id)}
             className={`relative transition-opacity duration-200 ${draggedId === workspace.id ? 'opacity-40' : 'opacity-100'}`}
           >
             <WorkspaceIcon
               workspace={workspace}
               isSelected={workspace.id === activeWorkspaceId}
-              onClick={() => onSelectWorkspace(workspace.id)}
+              onClick={() => {
+                onSelectWorkspace(workspace.id);
+                setPopoverId(null);
+              }}
             />
 
-            {hoveredId === workspace.id && createPortal(
+            {popoverId === workspace.id && createPortal(
               <div
+                ref={popoverRef}
                 className="fixed z-[5000]"
                 style={{ top: popoverPos.top, left: popoverPos.left }}
-                onMouseEnter={() => clearTimeout(popoverTimerRef.current)}
-                onMouseLeave={handleMouseLeave}
               >
                 <WorkspacePopover
                   workspace={workspace}
@@ -147,11 +161,11 @@ export function Sidebar({
                   onRunCommand={(name, command) => onRunCommand(workspace.id, name, command)}
                   onSendToPhone={() => {
                     setRemoteModalData({ id: workspace.id, path: workspace.path });
-                    setHoveredId(null);
+                    setPopoverId(null);
                   }}
                   onOpenSettings={() => {
                     onOpenWorkspaceSettings(workspace.id, workspace.name);
-                    setHoveredId(null);
+                    setPopoverId(null);
                   }}
                 />
               </div>,

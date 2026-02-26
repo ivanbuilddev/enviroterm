@@ -241,8 +241,6 @@ export function BrowserPanel({ isVisible, onClose, onRunCommand }: BrowserPanelP
     }
   };
 
-  if (!isVisible) return null;
-
   return (
     <div
       ref={panelRef}
@@ -293,17 +291,19 @@ export function BrowserPanel({ isVisible, onClose, onRunCommand }: BrowserPanelP
 
       {/* Webview content */}
       <div className="flex-1 overflow-hidden bg-white relative">
-        <webview
-          ref={webviewRef}
-          src={DEFAULT_URL}
-          partition="persist:skillsbrowser"
-          preload={preloadPath}
-          style={{
-            width: '100%',
-            height: '100%',
-            pointerEvents: isResizing ? 'none' : 'auto',
-          }}
-        />
+        {preloadPath && (
+          <webview
+            ref={webviewRef}
+            src={DEFAULT_URL}
+            partition="persist:skillsbrowser"
+            preload={preloadPath}
+            style={{
+              width: '100%',
+              height: '100%',
+              pointerEvents: isResizing ? 'none' : 'auto',
+            }}
+          />
+        )}
         {/* Overlay to capture mouse events during resize */}
         {isResizing && (
           <div className="absolute inset-0 z-10" />

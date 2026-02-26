@@ -5,7 +5,7 @@ interface UseWorkspaceReturn {
   workspaces: Workspace[];
   activeWorkspaceId: string | null;
   activeWorkspace: Workspace | null;
-  sessions: Session[];
+  sessionsByWorkspace: Record<string, Session[]>;
   isLoading: boolean;
   error: string | null;
   // Workspace methods
@@ -14,11 +14,16 @@ interface UseWorkspaceReturn {
   renameWorkspace: (id: string, name: string) => Promise<void>;
   deleteWorkspace: (id: string) => Promise<void>;
   reorderWorkspaces: (ids: string[]) => Promise<void>;
+  setExplorerOpen: (workspaceId: string, isOpen: boolean) => Promise<void>;
+  setBottomPanelOpen: (workspaceId: string, isOpen: boolean) => Promise<void>;
+  setBrowserPanelOpen: (workspaceId: string, isOpen: boolean) => Promise<void>;
+  setEditorWidth: (workspaceId: string, width: number) => Promise<void>;
+  setWorkspaceActiveFilePath: (workspaceId: string, path: string | null) => Promise<void>;
   openInVSCode: (path: string) => Promise<void>;
   openInExplorer: (path: string) => Promise<void>;
   // Session methods
-  createSession: (name?: string, initialCommand?: string) => Promise<void>;
-  createSessionForWorkspace: (workspaceId: string, name: string, initialCommand: string) => Promise<void>;
+  createSession: (name?: string, initialCommand?: string) => Promise<Session | undefined>;
+  createSessionForWorkspace: (workspaceId: string, name: string, initialCommand: string) => Promise<Session>;
   renameSession: (id: string, name: string) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
 }
@@ -26,7 +31,7 @@ interface UseWorkspaceReturn {
 export function useWorkspace(): UseWorkspaceReturn {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessionsByWorkspace, setSessionsByWorkspace] = useState<Record<string, Session[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,37 +57,44 @@ export function useWorkspace(): UseWorkspaceReturn {
     init();
   }, []);
 
-  // Sync sessions when active workspace changes
+  // Load sessions for ALL workspaces when workspaces change
   useEffect(() => {
-    if (!activeWorkspaceId) {
-      setSessions([]);
+    if (workspaces.length === 0) {
+      setSessionsByWorkspace({});
       return;
     }
-    async function loadSessions() {
+    async function loadAllSessions() {
       try {
-        const loadedSessions = await window.electronAPI.sessions.getByWorkspace(activeWorkspaceId!);
-        setSessions(loadedSessions);
+        const fetchPromises = workspaces.map(w => window.electronAPI.sessions.getByWorkspace(w.id));
+        const allSessionsList = await Promise.all(fetchPromises);
+
+        const newSessionsDict: Record<string, Session[]> = {};
+        workspaces.forEach((w, index) => {
+          newSessionsDict[w.id] = allSessionsList[index];
+        });
+        setSessionsByWorkspace(newSessionsDict);
       } catch (err) {
-        console.error('Failed to load sessions:', err);
+        console.error('Failed to load all sessions:', err);
       }
     }
-    loadSessions();
-  }, [activeWorkspaceId]);
+    loadAllSessions();
+  }, [workspaces.map(w => w.id).join(',')]); // Only run when the list of workspace IDs changes
 
   // Listen for sessions created remotely (from phone)
   useEffect(() => {
     const unsubscribe = window.electronAPI.sessions.onCreated((session) => {
-      // Only add if it belongs to the active workspace
-      if (session.workspaceId === activeWorkspaceId) {
-        setSessions(prev => {
-          // Avoid duplicates
-          if (prev.some(s => s.id === session.id)) return prev;
-          return [...prev, session];
-        });
-      }
+      setSessionsByWorkspace(prev => {
+        const workspaceSessions = prev[session.workspaceId] || [];
+        if (workspaceSessions.some(s => s.id === session.id)) return prev;
+
+        return {
+          ...prev,
+          [session.workspaceId]: [...workspaceSessions, session]
+        };
+      });
     });
     return unsubscribe;
-  }, [activeWorkspaceId]);
+  }, []);
 
   // --- WORKSPACE METHODS ---
 
@@ -114,6 +126,31 @@ export function useWorkspace(): UseWorkspaceReturn {
     await window.electronAPI.workspaces.reorder(ids);
   }, []);
 
+  const setExplorerOpen = useCallback(async (workspaceId: string, isOpen: boolean) => {
+    await window.electronAPI.workspaces.setExplorerOpen(workspaceId, isOpen);
+    setWorkspaces(prev => prev.map(w => w.id === workspaceId ? { ...w, isExplorerOpen: isOpen } : w));
+  }, []);
+
+  const setBottomPanelOpen = useCallback(async (workspaceId: string, isOpen: boolean) => {
+    await window.electronAPI.workspaces.setBottomPanelOpen(workspaceId, isOpen);
+    setWorkspaces(prev => prev.map(w => w.id === workspaceId ? { ...w, isBottomPanelOpen: isOpen } : w));
+  }, []);
+
+  const setBrowserPanelOpen = useCallback(async (workspaceId: string, isOpen: boolean) => {
+    await window.electronAPI.workspaces.setBrowserPanelOpen(workspaceId, isOpen);
+    setWorkspaces(prev => prev.map(w => w.id === workspaceId ? { ...w, isBrowserPanelOpen: isOpen } : w));
+  }, []);
+
+  const setEditorWidth = useCallback(async (workspaceId: string, width: number) => {
+    await window.electronAPI.workspaces.setEditorWidth(workspaceId, width);
+    setWorkspaces(prev => prev.map(w => w.id === workspaceId ? { ...w, editorWidth: width } : w));
+  }, []);
+
+  const setWorkspaceActiveFilePath = useCallback(async (workspaceId: string, path: string | null) => {
+    await window.electronAPI.workspaces.setActiveFilePath(workspaceId, path);
+    setWorkspaces(prev => prev.map(w => w.id === workspaceId ? { ...w, activeFilePath: path } : w));
+  }, []);
+
   const renameWorkspace = useCallback(async (id: string, name: string) => {
     await window.electronAPI.workspaces.rename(id, name);
     setWorkspaces(prev => prev.map(w => w.id === id ? { ...w, name } : w));
@@ -141,33 +178,68 @@ export function useWorkspace(): UseWorkspaceReturn {
   // --- SESSION METHODS ---
 
   const createSession = useCallback(async (name?: string, initialCommand?: string) => {
-    if (!activeWorkspaceId) return;
+    if (!activeWorkspaceId) return undefined;
     const session = await window.electronAPI.sessions.create(activeWorkspaceId, name, initialCommand);
-    setSessions(prev => [...prev, session]);
+    setSessionsByWorkspace(prev => ({
+      ...prev,
+      [activeWorkspaceId]: [...(prev[activeWorkspaceId] || []), session]
+    }));
+    return session;
   }, [activeWorkspaceId]);
 
   const createSessionForWorkspace = useCallback(async (workspaceId: string, name: string, initialCommand: string) => {
     const session = await window.electronAPI.sessions.create(workspaceId, name, initialCommand);
-    if (workspaceId === activeWorkspaceId) {
-      setSessions(prev => [...prev, session]);
-    }
-  }, [activeWorkspaceId]);
+    setSessionsByWorkspace(prev => ({
+      ...prev,
+      [workspaceId]: [...(prev[workspaceId] || []), session]
+    }));
+    return session;
+  }, []);
 
   const renameSession = useCallback(async (id: string, name: string) => {
     await window.electronAPI.sessions.rename(id, name);
-    setSessions(prev => prev.map(s => s.id === id ? { ...s, name } : s));
+    setSessionsByWorkspace(prev => {
+      const next = { ...prev };
+      for (const workspaceId in next) {
+        const sessions = next[workspaceId];
+        const index = sessions.findIndex(s => s.id === id);
+        if (index !== -1) {
+          next[workspaceId] = [
+            ...sessions.slice(0, index),
+            { ...sessions[index], name },
+            ...sessions.slice(index + 1)
+          ];
+          break;
+        }
+      }
+      return next;
+    });
   }, []);
 
   const deleteSession = useCallback(async (id: string) => {
     await window.electronAPI.sessions.delete(id);
-    setSessions(prev => prev.filter(s => s.id !== id));
+
+    // Also instruct terminal service to kill the PTY
+    window.electronAPI.terminal.kill(id);
+
+    setSessionsByWorkspace(prev => {
+      const next = { ...prev };
+      for (const workspaceId in next) {
+        const sessions = next[workspaceId];
+        if (sessions.some(s => s.id === id)) {
+          next[workspaceId] = sessions.filter(s => s.id !== id);
+          break;
+        }
+      }
+      return next;
+    });
   }, []);
 
   return {
     workspaces,
     activeWorkspaceId,
     activeWorkspace,
-    sessions,
+    sessionsByWorkspace,
     isLoading,
     error,
     createWorkspace,
@@ -175,6 +247,11 @@ export function useWorkspace(): UseWorkspaceReturn {
     renameWorkspace,
     deleteWorkspace,
     reorderWorkspaces,
+    setExplorerOpen,
+    setBottomPanelOpen,
+    setBrowserPanelOpen,
+    setEditorWidth,
+    setWorkspaceActiveFilePath,
     openInVSCode,
     openInExplorer,
     createSession,
