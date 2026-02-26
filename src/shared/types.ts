@@ -113,8 +113,9 @@ export interface ElectronAPI {
   getWebviewPreloadPath: () => Promise<string>;
   updater: {
     check: () => Promise<boolean>;
+    download: () => Promise<boolean>;
     install: () => void;
-    onStatusChange: (callback: (status: string) => void) => () => void;
+    onStatusChange: (callback: (status: string, version?: string) => void) => () => void;
     onProgress: (callback: (progress: any) => void) => () => void;
     onError: (callback: (error: string) => void) => () => void;
   };

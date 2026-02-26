@@ -20,10 +20,9 @@ export function registerUpdaterHandlers(mainWindow: BrowserWindow | null) {
     });
 
     autoUpdater.on('update-available', (info) => {
-        mainWindow?.webContents.send('updater:status', 'available');
-        console.log('[Updater] Update available:', info);
-        // Optionally start download automatically
-        autoUpdater.downloadUpdate();
+        mainWindow?.webContents.send('updater:status', 'available', info.version);
+        console.log('[Updater] Update available:', info.version);
+        // Do NOT auto-download — let the user decide
     });
 
     autoUpdater.on('update-not-available', (info) => {
@@ -56,6 +55,16 @@ export function registerUpdaterHandlers(mainWindow: BrowserWindow | null) {
             return result !== null;
         } catch (error) {
             console.error('[Updater] Failed to check for updates', error);
+            return false;
+        }
+    });
+
+    ipcMain.handle('updater:download', async () => {
+        try {
+            await autoUpdater.downloadUpdate();
+            return true;
+        } catch (error) {
+            console.error('[Updater] Failed to download update', error);
             return false;
         }
     });

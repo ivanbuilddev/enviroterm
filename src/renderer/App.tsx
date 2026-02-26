@@ -52,7 +52,8 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [workspaceSettings, setWorkspaceSettings] = useState<{ id: string; name: string } | null>(null);
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
-  const [updateStatus, setUpdateStatus] = useState<'none' | 'checking' | 'available' | 'downloaded'>('none');
+  const [updateStatus, setUpdateStatus] = useState<'none' | 'checking' | 'available' | 'downloading' | 'downloaded'>('none');
+  const [availableVersion, setAvailableVersion] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<{ message: string; type?: ToastType; id: number } | null>(null);
 
   const bottomPanelRefs = useRef<Record<string, BottomPanelHandle | null>>({});
@@ -153,15 +154,16 @@ function App() {
     window.electronAPI.updater.check();
 
     const unsubs = [
-      window.electronAPI.updater.onStatusChange((status: string) => {
+      window.electronAPI.updater.onStatusChange((status: string, version?: string) => {
         setUpdateStatus(status as any);
         if (status === 'up-to-date') {
           setToastMessage({ message: 'You are using the latest version', type: 'success', id: Date.now() });
           setTimeout(() => setUpdateStatus('none'), 3000);
         } else if (status === 'available') {
-          setToastMessage({ message: 'Update available. Downloading...', type: 'info', id: Date.now() });
+          if (version) setAvailableVersion(version);
+          setToastMessage({ message: `Update v${version || '?'} available! Click the download button to update.`, type: 'info', id: Date.now() });
         } else if (status === 'downloaded') {
-          setToastMessage({ message: 'Update downloaded. Ready to install.', type: 'info', id: Date.now() });
+          setToastMessage({ message: 'Update downloaded. Ready to install!', type: 'info', id: Date.now() });
         }
       }),
       window.electronAPI.updater.onError((err: string) => {
@@ -282,23 +284,28 @@ function App() {
               onClick={() => {
                 if (updateStatus === 'downloaded') {
                   window.electronAPI.updater.install();
-                } else if (updateStatus !== 'checking' && updateStatus !== 'available') {
+                } else if (updateStatus === 'available') {
+                  setUpdateStatus('downloading');
+                  window.electronAPI.updater.download();
+                } else if (updateStatus !== 'checking' && updateStatus !== 'downloading') {
                   window.electronAPI.updater.check();
                   setUpdateStatus('checking');
                 }
               }}
               className={`p-1.5 transition-colors rounded ${updateStatus === 'downloaded' ? 'text-accent-primary hover:bg-accent-primary/10 cursor-pointer' :
-                updateStatus === 'available' ? 'text-accent-primary hover:bg-accent-primary/10 cursor-wait' :
-                  updateStatus === 'checking' ? 'text-fg-muted cursor-wait' :
-                    'text-fg-muted hover:text-fg-primary hover:bg-white/10 cursor-pointer'
+                updateStatus === 'available' ? 'text-accent-primary hover:bg-accent-primary/10 cursor-pointer' :
+                  updateStatus === 'downloading' ? 'text-accent-primary cursor-wait' :
+                    updateStatus === 'checking' ? 'text-fg-muted cursor-wait' :
+                      'text-fg-muted hover:text-fg-primary hover:bg-white/10 cursor-pointer'
                 }`}
               title={
                 updateStatus === 'downloaded' ? 'Install Update' :
-                  updateStatus === 'checking' ? 'Checking for updates...' :
-                    updateStatus === 'available' ? 'Downloading update...' : 'Check for updates'
+                  updateStatus === 'available' ? `Download v${availableVersion || '?'}` :
+                    updateStatus === 'downloading' ? 'Downloading update...' :
+                      updateStatus === 'checking' ? 'Checking for updates...' : 'Check for updates'
               }
             >
-              <Download className={`w-3.5 h-3.5 ${updateStatus === 'checking' || updateStatus === 'available' ? 'animate-pulse' : ''}`} />
+              <Download className={`w-3.5 h-3.5 ${updateStatus === 'checking' || updateStatus === 'downloading' ? 'animate-pulse' : updateStatus === 'available' || updateStatus === 'downloaded' ? 'animate-bounce' : ''}`} />
             </button>
           </div>
           <button
